@@ -73,8 +73,8 @@ class ChainWindow(QMainWindow):
         self._note = ""  # what became of the person's decisions when optdoc changed
         adapters = {step.name: made for step, made in chain.steps}
         self.optdoc, self.ocrdoc = adapters["optdoc"], adapters["ocrdoc"]
-        self.prepared_project = self.optdoc.open(chain.original, chain.configs.get("optdoc"),
-                                                 chain.settings, work / "optdoc")
+        self.prepared_project = chain.opened(self.optdoc, chain.original,
+                                             chain.configs.get("optdoc"), work / "optdoc")
         self.read_project: Any = None
         self._prepared_key = b""
         self._swap(*self._remake(None))  # ocrdoc on optdoc's PDF, before the window shows
@@ -157,7 +157,7 @@ class ChainWindow(QMainWindow):
         pdf = self.optdoc.write(self.prepared_project, folder, stem, None)["pdf"]
         held = (self.ocrdoc.config(self.read_project) if self.read_project is not None
                 else self.chain.configs.get("ocrdoc"))
-        project = self.ocrdoc.open(pdf, held, self.chain.settings, self.work / "ocrdoc")
+        project = self.chain.opened(self.ocrdoc, pdf, held, self.work / "ocrdoc")
         return project, self.ocrdoc.dropped(project), key
 
     def _swap(self, project: Any, dropped: list[int], key: bytes) -> None:
@@ -201,7 +201,7 @@ class ChainWindow(QMainWindow):
         pdf = self.ocrdoc.write(self.read_project, folder, self.chain.original.stem, None)["pdf"]
         old = self.later_projects[step.name]
         held = made.config(old) if old is not None else self.chain.configs.get(step.name)
-        return made.open(pdf, held, self.chain.settings, self.work / step.name), key
+        return self.chain.opened(made, pdf, held, self.work / step.name), key
 
     def _swap_later(self, step: Any, made: Any, project: Any, key: bytes) -> None:
         """Put the later step's new project in place, its panel made at the first time."""

@@ -103,6 +103,26 @@ def scan(report: Path, target: Path, dpi: int = 200, noise: float = 0.0,
     return target
 
 
+def on_its_head(report: Path, target: Path) -> Path:
+    """A scan of the document with every page standing on its head."""
+    from PIL import Image
+
+    upright = scan(report, target.with_name(f"{target.stem}-upright.pdf"))
+    turned = pymupdf.open()
+    with pymupdf.open(upright) as source:
+        for page in source:
+            pix = page.get_pixmap(dpi=150, alpha=False)
+            image = Image.open(io.BytesIO(pix.tobytes("png"))).rotate(180)
+            buffer = io.BytesIO()
+            image.save(buffer, format="PNG")
+            sheet = turned.new_page(width=page.rect.width, height=page.rect.height)
+            sheet.insert_image(sheet.rect, stream=buffer.getvalue())
+    turned.save(target)
+    turned.close()
+    upright.unlink()
+    return target
+
+
 # an invented laboratory table: every name and value is made up
 TABLE = [("Untersuchung", "Ergebnis", "Einheit", "Referenzbereich"),
          ("Kalium", "5,8", "mmol/l", "3,5 - 5,1"),

@@ -24,6 +24,14 @@ does; semdoc is to)::
 so that installing it is all it takes to put it into the chain and the window.  A step
 that is not installed is left out; a chain document that names one is refused
 ("step-missing"), since without it the result cannot be made again.
+
+**Models.**  A step may do better with a model, an optional download (:mod:`doccor.models`).
+An adapter says so with two members docrepro looks for and does not demand: ``catalogue``,
+the models its step can use, and ``use_models(project, folder)``, which hands the step's
+project the folder whose models it may use.  docrepro lists the models of every step
+(``docrepro models list``), fetches one on request, and gives every step the folder of
+``--models``; what a model found is in the step's configuration document, so the chain
+document makes the results again without any.
 """
 
 from __future__ import annotations
@@ -34,6 +42,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
+
+from doccor.models import Model
 
 Progress = Callable[[int, int], None]  # page (from 1) about to be done, and how many
 
@@ -96,13 +106,34 @@ class Adapter(Protocol):
         """Release the project."""
 
 
+def catalogue(made: Adapter) -> tuple[Model, ...]:
+    """The models a step can use, as its adapter lists them; none where it lists none."""
+    return tuple(getattr(made, "catalogue", ()))
+
+
+def opened(made: Adapter, source: Path, config: dict[str, Any] | None,
+           settings: dict[str, Any], scratch: Path, models: Path | None) -> Any:
+    """A step's project on ``source`` (:meth:`Adapter.open`), with the folder of models it
+    may use handed over where the step takes one."""
+    project = made.open(source, config, settings, scratch)
+    use = getattr(made, "use_models", None)
+    if use is not None:
+        use(project, models)
+    return project
+
+
 class OptdocAdapter:
     """optdoc: the original in, the prepared PDF out."""
 
     def __init__(self) -> None:
         import optdoc
+        from optdoc.models import CATALOGUE
 
         self.version = optdoc.__version__
+        self.catalogue = CATALOGUE
+
+    def use_models(self, project: Any, folder: Path | None) -> None:
+        project.models = folder
 
     def open(self, source: Path, config: dict[str, Any] | None,
              settings: dict[str, Any], scratch: Path) -> Any:
@@ -138,8 +169,13 @@ class OcrdocAdapter:
 
     def __init__(self) -> None:
         import ocrdoc
+        from ocrdoc.models import CATALOGUE
 
         self.version = ocrdoc.__version__
+        self.catalogue = CATALOGUE
+
+    def use_models(self, project: Any, folder: Path | None) -> None:
+        project.models = folder
 
     def open(self, source: Path, config: dict[str, Any] | None,
              settings: dict[str, Any], scratch: Path) -> Any:

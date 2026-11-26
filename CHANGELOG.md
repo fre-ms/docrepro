@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.2.0 (2026-11-26)
+
+Models as an optional download, through every step. With optdoc 0.8.0, ocrdoc 0.2.0 and doccor
+0.2.0. Interface 1 and `docrepro-chain` version 1 stay: everything here is added.
+
+- **`docrepro models list [--models <folder>]`** names the models of every installed step, each
+  with its step, the address it comes from, its SHA-256, size and licence, and whether it lies in
+  the folder given; `about` lists them too.
+- **`docrepro models fetch <name> --to <folder> [--progress]`** fetches one, whichever step lists
+  it: the only command that goes on the network, and only when asked. The file is kept only when
+  it is the one listed.
+- **`--models <folder>`** for `run` and `edit` reaches every step that takes models. It is no
+  setting: the chain document does not name it, and what a model found is in its step's
+  configuration document, so the original and the chain document give every file again without
+  any model (tested: a scan on its head set upright by optdoc's orientation model and read by
+  ocrdoc, then made again from the chain document alone, byte for byte).
+- **Steps** say which models they can use (`catalogue`) and take the folder
+  (`use_models(project, folder)`) through their adapters; both are optional, as the panel is.
+- **The standalone program** is tried out with `models list`, with `models fetch` under the
+  network closed by the system (it must answer `model-unreachable` and keep nothing), and, where
+  the build is given a folder with the model (`packaging/build.py --models`), with a scan on its
+  head. The build fetches nothing.
+
 ## 0.1.0 (2026-11-26)
 
 The whole way in one: docrepro joins optdoc (the page made faithful), ocrdoc (what is on it

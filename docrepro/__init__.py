@@ -11,4 +11,4 @@ What the tools share (configuration documents, the command line's manners, no ne
 the window's building blocks) is doccor's (:mod:`doccor`).
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

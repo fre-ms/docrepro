@@ -4,7 +4,8 @@ For an application that ships docrepro beside it rather than inside it (a record
 sidecar): **one program with every step in it**, optdoc, ocrdoc and tagdoc with doccor, Python,
 PyMuPDF, OpenCV, ONNX Runtime, RapidOCR with its models, pillow-heif, Camelot with pandas and pdfium
 for the tables, zxing-cpp for the barcodes, PySide6 (Qt Widgets) for the windows. It needs no Python
-on the computer, loads nothing at run time and never goes on the network. The application talks to
+on the computer, loads nothing at run time and never goes on the network while it works (models are
+an optional download on request, below). The application talks to
 it through the command line described in [interface.md](interface.md); every step's own command
 line is in it too (`docrepro optdoc …`, `docrepro ocrdoc …`, `docrepro tagdoc …`), so that an
 application ships one program, not one per step.
@@ -39,22 +40,28 @@ and then tries the program out the way an application uses it:
   the same PDF, nothing left behind;
 - the steps one by one through their own command lines;
 - a failure, which must answer with its kind;
+- `models list`: the models the steps can use, each with its step;
 - on macOS the whole way and the window once more with the network closed by the system
-  (`sandbox-exec`).
+  (`sandbox-exec`), and there `models fetch`, which must answer `model-unreachable` and keep
+  nothing;
+- with `--models <folder>` (a folder the orientation model was fetched into; the build fetches
+  nothing itself): a scan on its head, which must come out upright and read, and the same files
+  again from its chain document without the model.
 
 It ends with a summary: size, checksum, timings, checks. `--no-check` builds only; `--check-only`
 tries out the program built before. `--onedir` builds a folder instead of one file.
 
-Built on macOS 27 (Apple M1 Max) with docrepro 0.1.0 (optdoc 0.7.0, ocrdoc 0.1.0, tagdoc 0.1.0),
+Built on macOS 27 (Apple M1 Max) with docrepro 0.2.0 (optdoc 0.8.0, ocrdoc 0.2.0, tagdoc 0.1.1),
 Python 3.13, PyInstaller 6.22:
 
 | | one file (default) | folder (`--onedir`) |
 |---|---|---|
 | size | 163 MB | 508 MB |
-| `docrepro about` | 3.6 s | 0.2 s |
-| `docrepro run` on a photographed one-page report (prepared, read, described) | 12.1 s | 4.1 s |
-| the same with `--no-cells` (no tables) | 8.9 s | 3.2 s |
-| `docrepro edit --self-test` on it (window open to closed, without a person) | 19.0 s | 5.1 s |
+| `docrepro about` | 3.8 s | 0.3 s |
+| `docrepro run` on a photographed one-page report (prepared, read, described) | 12.7 s | 4.2 s |
+| the same with `--no-cells` (no tables) | 10.5 s | 3.7 s |
+| `docrepro edit --self-test` on it (window open to closed, without a person) | 14.6 s | 5.3 s |
+| `docrepro run --models` on a one-page scan on its head (set upright, read, described) | 12.2 s | 3.8 s |
 
 Times are the mean of three runs; the first run after building or copying the program, or after a
 while unused, takes longer (25 s for `run` as one file, 9 s as a folder). The one file unpacks
@@ -98,6 +105,16 @@ not start: the system refuses the Python library it unpacks ("different Team IDs
 without the hardened runtime, or sign the program again after Tauri, with the hardened runtime and
 `packaging/entitlements.plist`.
 
+**Models.** The program carries no optional model, and nothing fetches one unasked. An application
+that wants its users to have one (so far `page-orientation`, 6.8 MB, with which a page scanned on
+its head comes out upright) offers the download and keeps a folder for it, say in its application
+support folder, and gives `run` and `edit` that folder with `--models`. Two ways to fill the folder,
+both giving the same file: start `docrepro models fetch <name> --to <folder>` **outside** the fence
+that closes the network (inside it the answer is `model-unreachable`), or fetch `url` from
+`docrepro models list` itself, check `sha256` and `bytes`, and store the file under the name `file`.
+`docrepro models list --models <folder>` says what is there (`present`). A file that is not the one
+listed is never used. Nothing of a document or a person goes with the request.
+
 **What a records app files.** The PDF docrepro writes carries tagdoc's description as the standard
 medRDS says (title, kind, clinical date, the program, and what a person added). A records app that
 files it with medRDS's reference library (`writePdfMetadata`) appends its own metadata; the
@@ -124,7 +141,9 @@ there was no Developer ID to try it with.
 
 `packaging/build.py` names the program for Linux (`x86_64-unknown-linux-gnu`, …) and Windows
 (`x86_64-pc-windows-msvc`, with `.exe`) as well, and the specification is not tied to macOS; built
-and tried so far only on macOS.
+and tried so far only on macOS. That holds for `models fetch` too: from the program built on macOS
+it reaches the address over TLS with the system's certificate authorities; whether the built
+program finds them on Linux and Windows is not tried.
 
 ## Licences
 

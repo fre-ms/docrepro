@@ -1,6 +1,7 @@
-"""The command line: ``docrepro about``, ``docrepro run``, ``docrepro edit`` (the window), and
-every step's own command line as ``docrepro <tool> …`` (``docrepro optdoc run …``,
-``docrepro ocrdoc edit …``), so that one program holds them all.
+"""The command line: ``docrepro about``, ``docrepro run``, ``docrepro edit`` (the window),
+``docrepro models`` (the models of every step: listed, and fetched on request), and every
+step's own command line as ``docrepro <tool> …`` (``docrepro optdoc run …``, ``docrepro ocrdoc
+edit …``), so that one program holds them all.
 
 Every command answers with exactly one JSON object on standard output, whether it
 succeeds or fails; a failure answers with its kind and its message in English and
@@ -20,11 +21,12 @@ from pathlib import Path
 from typing import Any
 
 from doccor import cli as frame
+from doccor.models import Model
 
 from docrepro import __version__, gui
 from docrepro.chain import SUFFIX, Chain, load_chain
 from docrepro.errors import DocreproError
-from docrepro.steps import STEPS, adapter
+from docrepro.steps import STEPS, adapter, catalogue
 
 INTERFACE = 1  # the version of docs/interface.md the answers follow
 TOOL = "docrepro"
@@ -51,7 +53,30 @@ def _about(args: argparse.Namespace) -> dict[str, Any]:
                       "gives": step.gives, "does": step.does, "planned": step.planned,
                       "installed": made is not None,
                       "version": made.version if made is not None else None})
-    return {"version": __version__, "steps": steps, "window": gui.available()}
+    return {"version": __version__, "steps": steps, "window": gui.available(),
+            "models": [{"step": name, **model.as_dict()} for name, model in _catalogue()]}
+
+
+def _catalogue() -> list[tuple[str, Model]]:
+    """The models the installed steps can use, each with the step that lists it, in the
+    order of the steps; a model two steps list is named once."""
+    found: dict[str, tuple[str, Model]] = {}
+    for step in STEPS:
+        made = adapter(step)
+        for model in catalogue(made) if made is not None else ():
+            found.setdefault(model.name, (step.name, model))
+    return list(found.values())
+
+
+def _models(args: argparse.Namespace) -> dict[str, Any]:
+    """``models list`` and ``models fetch`` over the models of every installed step; the
+    answers are a step's own, with the step that lists the model."""
+    listed = _catalogue()
+    step_of = {model.name: name for name, model in listed}
+    answer = frame.models_command([model for _name, model in listed], TOOL)(args)
+    if "models" in answer:
+        return {"models": [{"step": step_of[m["name"]], **m} for m in answer["models"]]}
+    return {"step": step_of[answer["model"]], **answer}
 
 
 def _settings(args: argparse.Namespace) -> dict[str, Any]:
@@ -72,8 +97,11 @@ def _chain(args: argparse.Namespace) -> Chain:
     if args.config is not None:
         if settings:
             raise DocreproError("usage")
-        return Chain.open(args.file, chain=load_chain(args.config))
-    return Chain.open(args.file, settings=settings)
+        chain = Chain.open(args.file, chain=load_chain(args.config))
+    else:
+        chain = Chain.open(args.file, settings=settings)
+    chain.models = args.models
+    return chain
 
 
 def _out(args: argparse.Namespace) -> Path:
@@ -131,6 +159,7 @@ def _document_options(pr: argparse.ArgumentParser) -> None:
                     help="ocrdoc: find no tables with their cells")
     pr.add_argument("--no-areas", action="store_const", const=True,
                     help="ocrdoc: find no barcodes, stamps, pictures or handwriting")
+    frame.add_models_option(pr)
     pr.add_argument("--progress", action="store_true",
                     help='a line {"step": …, "page": n, "of": m} on standard error per page')
 
@@ -149,6 +178,7 @@ def _parser() -> argparse.ArgumentParser:
     ed.add_argument("--language", choices=["de", "en"],
                     help="language of the window (default: the system's)")
     ed.add_argument("--self-test", action="store_true", help=argparse.SUPPRESS)
+    frame.add_models(sub, TOOL)
     for step in STEPS:
         sub.add_parser(step.name, help=f"{step.name}'s own command line ({step.does['en']})"
                        + (", planned" if step.planned else ""), add_help=False)
@@ -156,7 +186,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 COMMANDS: dict[str, Callable[[argparse.Namespace], dict[str, Any]]] = {
-    "about": _about, "run": _run, "edit": _edit}
+    "about": _about, "run": _run, "edit": _edit, "models": _models}
 
 
 def _missing(name: str) -> Callable[[argparse.Namespace], dict[str, Any]]:

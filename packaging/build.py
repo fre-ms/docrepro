@@ -2,6 +2,7 @@
 
     uv sync --extra gui --group build
     uv run python packaging/build.py [--identity "Developer ID Application: …"] [--no-check]
+        [--models <folder>]
 
 writes ``dist/docrepro-<target>`` (the name Tauri expects of a sidecar, ``<target>`` being
 the Rust target triple of this computer: ``aarch64-apple-darwin`` on a Mac with Apple
@@ -13,8 +14,12 @@ there) and each step's own ``about``; ``run`` on an invented photographed labora
 report with the temporary, home and cache folders pointed at empty folders, which must
 stay empty; ``run --config`` with the chain document it wrote (the same files, byte for
 byte); ``edit --self-test`` (the window without a person, off screen); the steps one by
-one through their own command lines; a failure, which must answer with its kind; on macOS
-once more with the network closed by the system (``sandbox-exec``), where that is allowed.
+one through their own command lines; a failure, which must answer with its kind; the
+models the steps list (``models list``); on macOS once more with the network closed by the
+system (``sandbox-exec``), where that is allowed, and there ``models fetch``, which must
+answer that it could not reach the address and keep nothing.  With ``--models <folder>``
+(a folder the orientation model was fetched into) also a scan on its head, which must come
+out upright and read.  The build itself fetches nothing.
 It ends with a summary in JSON: file, size, checksum, timings, checks.
 """
 
@@ -121,9 +126,9 @@ def _left(work: Path, empty: dict[str, Path]) -> list[str]:
     return [str(p.relative_to(work)) for f in empty.values() for p in f.rglob("*")]
 
 
-def check(program: Path) -> dict[str, object]:
+def check(program: Path, models: Path | None = None) -> dict[str, object]:
     """Try the program out; raises AssertionError at the first thing that is wrong."""
-    from tests.synthetic import photo_of, table_report
+    from tests.synthetic import on_its_head, photo_of, table_report
 
     timings: dict[str, float] = {}
     checks: dict[str, str] = {}
@@ -198,10 +203,59 @@ def check(program: Path) -> dict[str, object]:
         status, answer, _, _ = _run([str(program), "run", str(work / "fehlt.jpg")])
         assert status == 2 and answer["error"] == "missing", answer
         checks["failure"] = "answers with its kind"
+        status, answer, _, _ = _run([str(program), "models", "list", "--models",
+                                     str(work / "none")], env)
+        listed = {m["name"]: m for m in answer.get("models", [])}
+        assert status == 0 and listed["page-orientation"]["step"] == "optdoc" \
+            and listed["page-orientation"]["present"] is False, answer
+        checks["models"] = "listed with their steps: " + ", ".join(
+            f"{m['name']} ({m['step']})" for m in listed.values())
+        if models is not None:
+            status, answer, _, _ = _run([str(program), "models", "list", "--models",
+                                         str(models)], env)
+            assert status == 0 and any(m["name"] == "page-orientation" and m["present"]
+                                       for m in answer["models"]), answer
+            turned = on_its_head(work / "in" / "befund.pdf", work / "in" / "kopf.pdf")
+            status, answer, _, timings["run --models"] = _run(
+                [str(program), "run", str(turned), "--out", str(work / "upright"),
+                 "--models", str(models)], env)
+            assert status == 0, answer
+            chain = json.loads(Path(answer["config"]).read_text(encoding="utf-8"))
+            page = chain["steps"][0]["config"]["pages"][0]
+            assert page["plan"]["rotation"] == 180 and page["models"] == ["page-orientation"], page
+            text = json.loads(Path(answer["reading"]).read_text(encoding="utf-8"))["pages"][0]
+            assert "Kalium" in text["text"], text["text"][:200]
+            status, again, _, _ = _run(
+                [str(program), "run", str(turned), "--out", str(work / "upright-again"),
+                 "--config", answer["config"]], env)
+            assert status == 0, again
+            for key in ("pdf", "reading", "markdown", "config"):
+                assert Path(again[key]).read_bytes() == Path(answer[key]).read_bytes(), key
+            assert not _left(work, empty), _left(work, empty)
+            checks["models, used"] = ("a scan on its head set upright by the orientation model "
+                                      "and read; the same files again without the model")
         checks["network"] = _check_offline(program, photo, work / "offline")
         checks["network, window"] = _check_offline(program, photo, work / "offline-edit",
                                                    window=True)
+        checks["network, models fetch"] = _check_no_fetch(program, work / "fetched")
     return {"timings_s": timings, "checks": checks}
+
+
+def _check_no_fetch(program: Path, folder: Path) -> str:
+    """``models fetch`` with the network closed by the system (macOS only): it answers that
+    the address could not be reached, and keeps nothing."""
+    sandbox = shutil.which("sandbox-exec")
+    if sys.platform != "darwin" or sandbox is None:
+        return "not checked by the system (no sandbox-exec)"
+    run = subprocess.run([sandbox, "-p", NO_NETWORK, str(program), "models", "fetch",
+                          "page-orientation", "--to", str(folder)],
+                         capture_output=True, text=True, check=False, timeout=300)
+    if run.returncode != 0 and not run.stdout.strip():
+        return f"not checked by the system (sandbox-exec refused: {run.stderr.strip()[:80]})"
+    answer = json.loads(run.stdout)
+    assert run.returncode == 2 and answer["error"] == "model-unreachable", answer
+    assert not folder.exists() or not list(folder.iterdir()), list(folder.iterdir())
+    return "with the network closed it answers model-unreachable and keeps nothing"
 
 
 def _check_offline(program: Path, photo: Path, out: Path, window: bool = False) -> str:
@@ -231,6 +285,9 @@ def main() -> int:
     parser.add_argument("--no-check", action="store_true", help="build only")
     parser.add_argument("--check-only", action="store_true",
                         help="try out the program built before")
+    parser.add_argument("--models", type=Path,
+                        help="a folder with the orientation model: check that the program "
+                             "uses it (the build fetches nothing itself)")
     args = parser.parse_args()
     triple = target_triple()
     name = f"docrepro-{triple}" + ("-onedir" if args.onedir else "")
@@ -259,7 +316,7 @@ def main() -> int:
         "signed": args.identity or "ad hoc" if sys.platform == "darwin" else None,
     }
     if not args.no_check:
-        summary.update(check(program))
+        summary.update(check(program, args.models))
     print(json.dumps(summary, indent=1, ensure_ascii=False))
     return 0
 

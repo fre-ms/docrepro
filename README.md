@@ -20,7 +20,7 @@ What they share (configuration documents, the command line's manners, no network
 blocks) is [doccor](https://github.com/fre-ms/doccor)'s. Why the work is divided so, and the contract every
 step keeps: `docs/family-design.md` in optdoc.
 
-**Status: pre-alpha (0.1.0).**
+**Status: pre-alpha (0.2.0).**
 
 ## The chain and its document
 
@@ -61,6 +61,9 @@ docrepro run photo.heic --out results/ --config results/photo.docrepro.json
 docrepro edit photo.heic --out results/ --language en
 docrepro optdoc run photo.heic --out step1/      # every step's own command line
 docrepro ocrdoc run step1/photo.pdf --out step2/
+docrepro models list                             # the models the steps can use
+docrepro models fetch page-orientation --to models/
+docrepro run scan.pdf --out results/ --models models/
 ```
 
 `run` writes the last step's files under the original's name (`<name>.pdf` with ocrdoc's text layer and
@@ -73,10 +76,19 @@ given with `run` and `edit`: `--paper`, `--photo`/`--scan`, `--no-clean-up`, `--
 `--reader`, `--languages`, `--no-cells`, `--no-areas` (ocrdoc). `--progress` writes
 `{"step": "ocrdoc", "page": 1, "of": 2}` per step and page on standard error.
 
+**Models are an optional download.** No step needs one, and docrepro never goes on the network while it
+works. `models list` shows the models the steps can use, each with its step, the address it comes from, its
+SHA-256, size and licence; `models fetch <name> --to <folder>` fetches one, the only command that goes on the
+network, and keeps the file only when it is the one listed; `--models <folder>` lets the steps use what lies
+there. A model is listed only after it did better, measured, than the rules it adds to. So far that is one:
+`page-orientation` (6.8 MB, Apache-2.0), with which optdoc sets a page upright that stands on its head or on
+its side. What a model found is kept in its step's configuration document, so the original and the chain
+document give every file again without any model.
+
 ## Install
 
 Python 3.12 or later, with [uv](https://docs.astral.sh/uv/); the steps and the core come from their released
-tags (optdoc `v0.7.0`, ocrdoc `v0.1.0`, tagdoc `v0.1.0`, doccor `v0.1.0`):
+tags:
 
 ```
 uv sync --extra gui
@@ -93,7 +105,7 @@ faster-starting folder with `--onedir`. See [docs/sidecar.md](docs/sidecar.md).
 
 ## Planned
 
-- semdoc; models as an optional download for the steps that gain from one.
+- semdoc, once lexcor has its annotation document and its window for a person's review.
 
 ## Licence
 

@@ -36,7 +36,7 @@ from doccor.errors import DocError
 
 from docrepro import __version__
 from docrepro.errors import DocreproError
-from docrepro.steps import STEPS, Adapter, Step, installed
+from docrepro.steps import STEPS, Adapter, Step, installed, opened
 
 FORMAT = "docrepro-chain"
 FORMAT_VERSION = 1
@@ -88,7 +88,8 @@ class Chain:
     """An original and how it goes through the steps: as the chain document given says,
     else fresh with the settings of the steps (``settings``, each step takes those it
     knows: ``paper``, ``photo``, ``colour_pages`` … for optdoc, ``reader``, ``languages``,
-    ``cells`` … for ocrdoc)."""
+    ``cells`` … for ocrdoc).  ``models`` is the folder of models the steps may use (None:
+    none); it is no setting, and the chain document does not name it."""
 
     def __init__(self, original: Path, sha256: str, size: int,
                  configs: dict[str, dict[str, Any]], settings: dict[str, Any]) -> None:
@@ -98,6 +99,7 @@ class Chain:
         self.configs = configs
         # the program the document is made with, as the steps that describe it name it
         self.settings = {"creator_tool": f"docrepro {__version__}", **settings}
+        self.models: Path | None = None
         self.steps: list[tuple[Step, Adapter]] = installed()
 
     @classmethod
@@ -124,6 +126,12 @@ class Chain:
             if name not in known:
                 raise DocreproError("step-missing", step=name)
         return made
+
+    def opened(self, adapter: Adapter, source: Path, config: dict[str, Any] | None,
+               scratch: Path) -> Any:
+        """A step's project on ``source``, with the chain's settings and its folder of
+        models."""
+        return opened(adapter, source, config, self.settings, scratch, self.models)
 
     # -- the chain document --------------------------------------------------------------------
     def document(self, configs: dict[str, dict[str, Any]]) -> dict[str, Any]:
@@ -187,7 +195,7 @@ class Chain:
             source = self.original
             for step, adapter in self.steps:
                 folder = work / step.name
-                project = adapter.open(source, start.get(step.name), self.settings, folder)
+                project = self.opened(adapter, source, start.get(step.name), folder)
                 try:
                     paths = adapter.write(project, folder, stem, _per_step(progress, step.name))
                     made[step.name] = adapter.config(project)
