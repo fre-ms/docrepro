@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 (unreleased)
+## 0.1.0 (2026-11-26)
 
 The whole way in one: docrepro joins optdoc (the page made faithful), ocrdoc (what is on it
 recognised) and tagdoc (the document described as medRDS says), with a place kept for semdoc.

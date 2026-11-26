@@ -252,8 +252,8 @@ requires-dist = [
     { name = "ocrdoc", extras = ["ocr", "tables", "barcodes"], git = "https://github.com/fre-ms/ocrdoc?tag=v0.1.0" },
     { name = "optdoc", extras = ["cleanup"], git = "https://github.com/fre-ms/optdoc?tag=v0.7.0" },
     { name = "optdoc", extras = ["gui"], marker = "extra == 'gui'", git = "https://github.com/fre-ms/optdoc?tag=v0.7.0" },
-    { name = "tagdoc", git = "https://github.com/fre-ms/tagdoc?rev=ae1c36b4979895ef4fda76ac89bed69855d92231" },
-    { name = "tagdoc", extras = ["gui"], marker = "extra == 'gui'", git = "https://github.com/fre-ms/tagdoc?rev=ae1c36b4979895ef4fda76ac89bed69855d92231" },
+    { name = "tagdoc", git = "https://github.com/fre-ms/tagdoc?tag=v0.1.0" },
+    { name = "tagdoc", extras = ["gui"], marker = "extra == 'gui'", git = "https://github.com/fre-ms/tagdoc?tag=v0.1.0" },
 ]
 provides-extras = ["gui"]
 
@@ -1233,7 +1233,7 @@ wheels = [
 [[package]]
 name = "tagdoc"
 version = "0.1.0"
-source = { git = "https://github.com/fre-ms/tagdoc?rev=ae1c36b4979895ef4fda76ac89bed69855d92231#ae1c36b4979895ef4fda76ac89bed69855d92231" }
+source = { git = "https://github.com/fre-ms/tagdoc?tag=v0.1.0#c89dcf97d55a1d3f92494099ae41651079dae199" }
 dependencies = [
     { name = "doccor" },
     { name = "pymupdf" },

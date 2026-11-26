@@ -20,7 +20,7 @@ What they share (configuration documents, the command line's manners, no network
 blocks) is [doccor](https://github.com/fre-ms/doccor)'s. Why the work is divided so, and the contract every
 step keeps: `docs/family-design.md` in optdoc.
 
-**Status: pre-alpha (0.1.0), local.**
+**Status: pre-alpha (0.1.0).**
 
 ## The chain and its document
 
@@ -75,8 +75,8 @@ given with `run` and `edit`: `--paper`, `--photo`/`--scan`, `--no-clean-up`, `--
 
 ## Install
 
-Python 3.12 or later, with [uv](https://docs.astral.sh/uv/); optdoc and ocrdoc come from their released
-tags (`v0.7.0`, `v0.1.0`), tagdoc from a fixed commit of its repository until it is tagged:
+Python 3.12 or later, with [uv](https://docs.astral.sh/uv/); the steps and the core come from their released
+tags (optdoc `v0.7.0`, ocrdoc `v0.1.0`, tagdoc `v0.1.0`, doccor `v0.1.0`):
 
 ```
 uv sync --extra gui
