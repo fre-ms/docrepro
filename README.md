@@ -82,9 +82,17 @@ tags (`v0.7.0`, `v0.1.0`), tagdoc from a fixed commit of its repository until it
 uv sync --extra gui
 ```
 
+## Standalone program
+
+`uv run python packaging/build.py` builds docrepro as one program with every step in it (Python, the OCR
+models, Camelot, Qt and all), named the way Tauri wants a sidecar (`docrepro-aarch64-apple-darwin`), and
+tries it out: the whole way on an invented photo with nothing left outside the results, the same files
+again from the chain document, the window without a person, the steps one by one, everything once more
+with the network closed by the system. 163 MB as one file (no more than optdoc 0.6.0 was on its own), or a
+faster-starting folder with `--onedir`. See [docs/sidecar.md](docs/sidecar.md).
+
 ## Planned
 
-- One standalone program with every tool inside (from optdoc 0.6.0's build), for a records app to ship.
 - semdoc; models as an optional download for the steps that gain from one.
 
 ## Licence

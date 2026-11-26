@@ -20,6 +20,13 @@ recognised) and tagdoc (the document described as medRDS says), with a place kep
   (`step-missing`).
 - **The command line**: `about`, `run`, `edit`, and every step's own as `docrepro <step> …`;
   interface 1 (`docs/interface.md`).
+- **The standalone program** (`packaging/`, `docs/sidecar.md`): one file or a folder with every
+  step inside, built and tried out by `packaging/build.py` (from optdoc 0.6.0's build): 163 MB as
+  one file; the whole way on a photographed page in 12 s as one file, 4 s as a folder. CI builds
+  and checks it on macOS.
+- **Filed by a records app**: medRDS's reference library writes its metadata into docrepro's PDF,
+  tagdoc's description stays beside them, and the filed PDF with the original gives every file
+  again (`tests/test_filed.py`).
 - **The window**: one tab per step, optdoc's preparation, ocrdoc's filters, areas and text, and the
   panel a later step brings (tagdoc's description); a later tab after a change in optdoc gets
   optdoc's new PDF, a step after ocrdoc ocrdoc's result, and the status line says what became of

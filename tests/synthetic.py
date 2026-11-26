@@ -101,3 +101,46 @@ def scan(report: Path, target: Path, dpi: int = 200, noise: float = 0.0,
     images.save(target)
     images.close()
     return target
+
+
+# an invented laboratory table: every name and value is made up
+TABLE = [("Untersuchung", "Ergebnis", "Einheit", "Referenzbereich"),
+         ("Kalium", "5,8", "mmol/l", "3,5 - 5,1"),
+         ("Natrium", "140", "mmol/l", "135 - 145"),
+         ("Kreatinin", "0,9", "mg/dl", "0,5 - 1,0"),
+         ("CRP", "< 0,5", "mg/l", "< 5,0"),
+         ("Leukozyten", "6,2", "G/l", "4,0 - 10,0")]
+
+
+def table_report(path: Path) -> Path:
+    """An invented one-page laboratory report with a ruled table, as a PDF with text."""
+    doc = pymupdf.open()
+    page = doc.new_page()
+    page.insert_text((56, 80), "Laborbefund", fontsize=15, fontname="helv")
+    page.insert_text((56, 104), "Befunddatum: 12.03.2026", fontsize=10, fontname="helv")
+    widths, x0, y0, height = (150, 90, 90, 130), 56.0, 140.0, 22.0
+    for r, row in enumerate(TABLE):
+        x = x0
+        for c, text in enumerate(row):
+            cell = pymupdf.Rect(x, y0 + r * height, x + widths[c], y0 + (r + 1) * height)
+            page.draw_rect(cell, color=(0, 0, 0), width=1.0)
+            page.insert_text((x + 4, y0 + r * height + 15), text, fontsize=10, fontname="helv")
+            x += widths[c]
+    doc.save(path)
+    doc.close()
+    return path
+
+
+def photo_of(pdf: Path, target: Path, dpi: int = 200, rotation: float = 1.2) -> Path:
+    """The first page of a PDF as a JPEG, a little askew, as a phone or a scanner app
+    hands it over."""
+    import io
+
+    from PIL import Image
+
+    with pymupdf.open(pdf) as doc:
+        png = doc[0].get_pixmap(dpi=dpi, alpha=False).tobytes("png")
+    image = Image.open(io.BytesIO(png)).convert("RGB").rotate(rotation, expand=True,
+                                                               fillcolor=(255, 255, 255))
+    image.save(target, format="JPEG", quality=90)
+    return target

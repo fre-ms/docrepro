@@ -1,0 +1,268 @@
+"""Build docrepro as one executable file with every step inside, and try it out.
+
+    uv sync --extra gui --group build
+    uv run python packaging/build.py [--identity "Developer ID Application: …"] [--no-check]
+
+writes ``dist/docrepro-<target>`` (the name Tauri expects of a sidecar, ``<target>`` being
+the Rust target triple of this computer: ``aarch64-apple-darwin`` on a Mac with Apple
+silicon), ``dist/docrepro-<target>.sha256`` and ``dist/docrepro-<target>.licences.json``
+(the packages inside and their licences).  With ``--onedir`` a folder
+``docrepro-<target>-onedir`` instead, with the program ``docrepro`` in it.  Then it runs
+the program the way an application will: ``about`` (every step installed, the window
+there) and each step's own ``about``; ``run`` on an invented photographed laboratory
+report with the temporary, home and cache folders pointed at empty folders, which must
+stay empty; ``run --config`` with the chain document it wrote (the same files, byte for
+byte); ``edit --self-test`` (the window without a person, off screen); the steps one by
+one through their own command lines; a failure, which must answer with its kind; on macOS
+once more with the network closed by the system (``sandbox-exec``), where that is allowed.
+It ends with a summary in JSON: file, size, checksum, timings, checks.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import platform
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))  # the invented documents of the tests
+
+NO_NETWORK = "(version 1)(allow default)(deny network*)"
+RESULTS = ["foto.docrepro.json", "foto.md", "foto.pdf", "foto.reading.json"]
+STEPS = ["optdoc", "ocrdoc", "tagdoc"]
+
+
+def target_triple() -> str:
+    """The Rust target triple of this computer, which Tauri appends to a sidecar's name."""
+    rustc = shutil.which("rustc")
+    if rustc:
+        out = subprocess.run([rustc, "-vV"], capture_output=True, text=True, check=False).stdout
+        for line in out.splitlines():
+            if line.startswith("host: "):
+                return line.removeprefix("host: ").strip()
+    machine = {"amd64": "x86_64", "x86_64": "x86_64", "arm64": "aarch64",
+               "aarch64": "aarch64"}[platform.machine().lower()]
+    system = {"darwin": "apple-darwin", "linux": "unknown-linux-gnu",
+              "win32": "pc-windows-msvc"}[sys.platform]
+    return f"{machine}-{system}"
+
+
+def build(name: str, identity: str | None, onedir: bool = False) -> Path:
+    """Run PyInstaller on the specification; returns the program.  PyInstaller loads ONNX
+    Runtime to collect it, which would start its telemetry (see doccor.offline)."""
+    env = {**os.environ, "DOCREPRO_BINARY_NAME": name, "ORT_DISABLE_TELEMETRY": "1"}
+    if identity:
+        env["DOCREPRO_CODESIGN_IDENTITY"] = identity
+    if onedir:
+        env["DOCREPRO_ONEDIR"] = "1"
+    subprocess.run([sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean",
+                    "--distpath", str(ROOT / "dist"), "--workpath", str(ROOT / "build"),
+                    str(ROOT / "packaging" / "docrepro.spec")], check=True, env=env, cwd=ROOT)
+    suffix = ".exe" if sys.platform == "win32" else ""
+    if onedir:
+        return ROOT / "dist" / name / f"docrepro{suffix}"
+    return ROOT / "dist" / f"{name}{suffix}"
+
+
+def licences() -> list[dict[str, str]]:
+    """The Python distributions the program carries (docrepro with its extra "gui", its
+    steps with theirs, and what they need), each with its version and licence as its
+    metadata states it."""
+    from importlib import metadata
+
+    from packaging.requirements import Requirement
+
+    found: dict[str, dict[str, str]] = {}
+    seen: dict[str, set[str]] = {}  # the extras each distribution was walked with
+    queue: list[tuple[str, set[str]]] = [("docrepro", {"gui"})]
+    while queue:
+        name, extras = queue.pop()
+        key = name.lower().replace("_", "-")
+        new = (extras | {""}) - seen.get(key, set())
+        if not new:
+            continue
+        seen.setdefault(key, set()).update(new)
+        try:
+            dist = metadata.distribution(name)
+        except metadata.PackageNotFoundError:
+            continue
+        meta = dist.metadata
+        licence = (meta.get("License-Expression") or next(
+            (c.split(" :: ")[-1] for c in meta.get_all("Classifier") or []
+             if c.startswith("License ::")), None) or (meta.get("License") or "").split("\n")[0])
+        found[key] = {"name": meta["Name"], "version": dist.version, "licence": licence}
+        for text in dist.requires or []:
+            requirement = Requirement(text)
+            if requirement.marker is None or any(
+                    requirement.marker.evaluate({"extra": e}) for e in new):
+                queue.append((requirement.name, set(requirement.extras)))
+    return sorted(found.values(), key=lambda d: d["name"].lower())
+
+
+def _run(argv: list[str], env: dict[str, str] | None = None) -> tuple[int, dict, str, float]:
+    """Run the program; its status, its answer, its standard error and the seconds taken."""
+    start = time.monotonic()
+    run = subprocess.run(argv, capture_output=True, text=True, check=False, env=env,
+                         timeout=1200)
+    seconds = round(time.monotonic() - start, 2)
+    return run.returncode, json.loads(run.stdout), run.stderr, seconds
+
+
+def _left(work: Path, empty: dict[str, Path]) -> list[str]:
+    """What lies in the folders that must stay empty."""
+    return [str(p.relative_to(work)) for f in empty.values() for p in f.rglob("*")]
+
+
+def check(program: Path) -> dict[str, object]:
+    """Try the program out; raises AssertionError at the first thing that is wrong."""
+    from tests.synthetic import photo_of, table_report
+
+    timings: dict[str, float] = {}
+    checks: dict[str, str] = {}
+    status, answer, _, timings["about"] = _run([str(program), "about"])
+    steps = {s["tool"]: s for s in answer["steps"]}
+    assert status == 0 and all(steps[name]["installed"] for name in STEPS), answer
+    assert answer["window"] and answer["interface"] >= 1, answer
+    checks["about"] = answer["made_with"] + ", steps " + ", ".join(
+        f"{name} {steps[name]['version']}" for name in STEPS)
+    status, optdoc, _, _ = _run([str(program), "optdoc", "about"])
+    assert status == 0 and optdoc["clean_up"] and optdoc["heic"] and optdoc["window"] \
+        and optdoc["upside_down"], optdoc
+    status, ocrdoc, _, _ = _run([str(program), "ocrdoc", "about"])
+    assert status == 0 and "rapidocr" in ocrdoc["readers"] and ocrdoc["filters"] \
+        and ocrdoc["tables"] and ocrdoc["barcodes"] and ocrdoc["window"], ocrdoc
+    status, tagdoc, _, _ = _run([str(program), "tagdoc", "about"])
+    assert status == 0 and "lab" in tagdoc["kinds"] and tagdoc["window"], tagdoc
+    checks["steps"] = (f"optdoc: clean-up, HEIC, window, upside down; ocrdoc: readers "
+                       f"{ocrdoc['readers']}, filters, tables, barcodes, window; tagdoc: "
+                       f"{tagdoc['standard']}, window")
+    with tempfile.TemporaryDirectory() as folder:
+        work = Path(folder)
+        (work / "in").mkdir()
+        photo = photo_of(table_report(work / "in" / "befund.pdf"), work / "in" / "foto.jpg")
+        empty = {name: work / name for name in ("tmp", "home", "cache")}
+        for path in empty.values():
+            path.mkdir()
+        env = {**os.environ, "TMPDIR": str(empty["tmp"]), "TEMP": str(empty["tmp"]),
+               "TMP": str(empty["tmp"]), "HOME": str(empty["home"]),
+               "USERPROFILE": str(empty["home"]), "XDG_CACHE_HOME": str(empty["cache"])}
+        status, answer, err, timings["run"] = _run(
+            [str(program), "run", str(photo), "--out", str(work / "out"), "--progress"], env)
+        assert status == 0 and [s["tool"] for s in answer["steps"]] == STEPS, answer
+        assert [json.loads(z) for z in err.splitlines()] == [
+            {"step": name, "page": 1, "of": 1} for name in STEPS], err
+        assert sorted(p.name for p in (work / "out").iterdir()) == RESULTS
+        page = json.loads(Path(answer["reading"]).read_text(encoding="utf-8"))["pages"][0]
+        assert page["source"] == "ocr" and "Kalium" in page["text"], page["text"][:200]
+        assert page["tables"] and len(page["tables"][0]["rows"]) >= 5, page["tables"]
+        chain = json.loads(Path(answer["config"]).read_text(encoding="utf-8"))
+        described = {s["tool"]: s["config"] for s in chain["steps"]}["tagdoc"]["fields"]
+        assert described["kind"]["value"] == "lab", described["kind"]
+        assert described["date"]["value"] == "2026-03-12", described["date"]
+        assert not _left(work, empty), _left(work, empty)
+        checks["run"] = ("photo prepared, read (its table with its rows) and described (kind "
+                         "and date), four files, nothing left in tmp, home or cache")
+        status, again, _, timings["run --config"] = _run(
+            [str(program), "run", str(photo), "--out", str(work / "again"), "--config",
+             answer["config"]], env)
+        assert status == 0, again
+        for key in ("pdf", "reading", "markdown", "config"):
+            assert Path(again[key]).read_bytes() == Path(answer[key]).read_bytes(), key
+        checks["reproduced"] = "the same four files again from the chain document, byte for byte"
+        status, edited, _, timings["edit --self-test"] = _run(
+            [str(program), "edit", str(photo), "--out", str(work / "edited"), "--self-test"],
+            {**env, "QT_QPA_PLATFORM": "offscreen"})
+        assert status == 0 and edited["finished"], edited
+        assert Path(edited["pdf"]).read_bytes() == Path(answer["pdf"]).read_bytes()
+        assert not _left(work, empty), _left(work, empty)
+        checks["window"] = ("opened without a screen, every tab shown, applied, the same PDF, "
+                            "nothing left behind")
+        status, one, _, timings["optdoc run"] = _run(
+            [str(program), "optdoc", "run", str(photo), "--out", str(work / "s1")], env)
+        assert status == 0 and one["cleaned_up"] == [1], one
+        status, two, _, timings["ocrdoc run"] = _run(
+            [str(program), "ocrdoc", "run", one["pdf"], "--out", str(work / "s2")], env)
+        assert status == 0 and two["ocr_pages"] == [1] and two["carried"] == ["optdoc.json"], two
+        status, three, _, timings["tagdoc run"] = _run(
+            [str(program), "tagdoc", "run", two["pdf"], "--out", str(work / "s3")], env)
+        assert status == 0 and three["problems"] == [], three
+        checks["steps one by one"] = "optdoc, ocrdoc and tagdoc through their own command lines"
+        status, answer, _, _ = _run([str(program), "run", str(work / "fehlt.jpg")])
+        assert status == 2 and answer["error"] == "missing", answer
+        checks["failure"] = "answers with its kind"
+        checks["network"] = _check_offline(program, photo, work / "offline")
+        checks["network, window"] = _check_offline(program, photo, work / "offline-edit",
+                                                   window=True)
+    return {"timings_s": timings, "checks": checks}
+
+
+def _check_offline(program: Path, photo: Path, out: Path, window: bool = False) -> str:
+    """``run`` (or the window's self-test) once more with the network closed by the system
+    (macOS only)."""
+    sandbox = shutil.which("sandbox-exec")
+    if sys.platform != "darwin" or sandbox is None:
+        return "not checked by the system (no sandbox-exec)"
+    command = ["edit", str(photo), "--out", str(out), "--self-test"] if window else [
+        "run", str(photo), "--out", str(out)]
+    run = subprocess.run([sandbox, "-p", NO_NETWORK, str(program), *command],
+                         capture_output=True, text=True, check=False, timeout=1200,
+                         env={**os.environ, "QT_QPA_PLATFORM": "offscreen"})
+    if run.returncode != 0 and not run.stdout.strip():
+        return f"not checked by the system (sandbox-exec refused: {run.stderr.strip()[:80]})"
+    answer = json.loads(run.stdout)
+    assert run.returncode == 0 and [s["tool"] for s in answer["steps"]] == STEPS, answer
+    return "the whole way with the network closed by sandbox-exec"
+
+
+def main() -> int:
+    """Build, check, sum up."""
+    parser = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
+    parser.add_argument("--identity", help="macOS signing identity (Developer ID)")
+    parser.add_argument("--onedir", action="store_true",
+                        help="a folder instead of one file: starts faster (docs/sidecar.md)")
+    parser.add_argument("--no-check", action="store_true", help="build only")
+    parser.add_argument("--check-only", action="store_true",
+                        help="try out the program built before")
+    args = parser.parse_args()
+    triple = target_triple()
+    name = f"docrepro-{triple}" + ("-onedir" if args.onedir else "")
+    if args.check_only:
+        suffix = ".exe" if sys.platform == "win32" else ""
+        program = (ROOT / "dist" / name / f"docrepro{suffix}" if args.onedir
+                   else ROOT / "dist" / f"{name}{suffix}")
+    else:
+        program = build(name, args.identity, args.onedir)
+    digest = hashlib.sha256(program.read_bytes()).hexdigest()
+    program.with_name(program.name + ".sha256").write_text(f"{digest}  {program.name}\n",
+                                                          encoding="utf-8")
+    carried = program.parent / f"docrepro-{triple}.licences.json"
+    carried.write_text(json.dumps({
+        "python": licences(),
+        "note": "Native libraries inside these packages carry their own licences: OpenCV "
+                "brings FFmpeg (LGPL), pillow-heif brings libheif and libde265 (LGPL) and x265 "
+                "(GPL 2.0 or later), pypdfium2 brings pdfium (Apache 2.0 and BSD), PySide6 "
+                "brings Qt (LGPL 3.0); see each package's licence files. tagdoc carries a copy "
+                "of the schema of medRDS (MIT).",
+    }, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    files = [p for p in program.parent.rglob("*") if p.is_file()] if args.onedir else [program]
+    summary: dict[str, object] = {
+        "program": str(program.relative_to(ROOT)), "target": triple,
+        "size_mb": round(sum(p.stat().st_size for p in files) / 1e6, 1), "sha256": digest,
+        "signed": args.identity or "ad hoc" if sys.platform == "darwin" else None,
+    }
+    if not args.no_check:
+        summary.update(check(program))
+    print(json.dumps(summary, indent=1, ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

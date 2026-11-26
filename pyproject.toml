@@ -46,6 +46,9 @@ docrepro = "docrepro.cli:main"
 Source = "https://github.com/fre-ms/docrepro"
 
 [dependency-groups]
+build = [
+    "pyinstaller>=6.11",
+]
 dev = [
   "pytest>=8",
   "pytest-timeout>=2.3",
