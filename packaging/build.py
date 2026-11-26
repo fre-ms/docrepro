@@ -43,7 +43,7 @@ sys.path.insert(0, str(ROOT))  # the invented documents of the tests
 
 NO_NETWORK = "(version 1)(allow default)(deny network*)"
 RESULTS = ["foto.docrepro.json", "foto.md", "foto.pdf", "foto.reading.json"]
-STEPS = ["optdoc", "ocrdoc", "tagdoc"]
+STEPS = ["typdoc", "optdoc", "ocrdoc", "tagdoc"]
 
 
 def target_triple() -> str:
@@ -139,6 +139,8 @@ def check(program: Path, models: Path | None = None) -> dict[str, object]:
     assert answer["window"] and answer["interface"] >= 1, answer
     checks["about"] = answer["made_with"] + ", steps " + ", ".join(
         f"{name} {steps[name]['version']}" for name in STEPS)
+    status, typdoc, _, _ = _run([str(program), "typdoc", "about"])
+    assert status == 0 and "heic" in typdoc["pictures"] and typdoc["to"] == ["pdf"], typdoc
     status, optdoc, _, _ = _run([str(program), "optdoc", "about"])
     assert status == 0 and optdoc["clean_up"] and optdoc["heic"] and optdoc["window"] \
         and optdoc["upside_down"], optdoc
@@ -147,7 +149,8 @@ def check(program: Path, models: Path | None = None) -> dict[str, object]:
         and ocrdoc["tables"] and ocrdoc["barcodes"] and ocrdoc["window"], ocrdoc
     status, tagdoc, _, _ = _run([str(program), "tagdoc", "about"])
     assert status == 0 and "lab" in tagdoc["kinds"] and tagdoc["window"], tagdoc
-    checks["steps"] = (f"optdoc: clean-up, HEIC, window, upside down; ocrdoc: readers "
+    checks["steps"] = (f"typdoc: {typdoc['standard']}; "
+                       f"optdoc: clean-up, HEIC, window, upside down; ocrdoc: readers "
                        f"{ocrdoc['readers']}, filters, tables, barcodes, window; tagdoc: "
                        f"{tagdoc['standard']}, window")
     with tempfile.TemporaryDirectory() as folder:
@@ -200,7 +203,12 @@ def check(program: Path, models: Path | None = None) -> dict[str, object]:
         status, three, _, timings["tagdoc run"] = _run(
             [str(program), "tagdoc", "run", two["pdf"], "--out", str(work / "s3")], env)
         assert status == 0 and three["problems"] == [], three
-        checks["steps one by one"] = "optdoc, ocrdoc and tagdoc through their own command lines"
+        status, zero, _, timings["typdoc run"] = _run(
+            [str(program), "typdoc", "run", str(photo), "--out", str(work / "s0")], env)
+        assert status == 0 and zero["pages"] == 1 and zero["bound"][0]["attached"] is False, zero
+        assert photo.read_bytes() in Path(zero["pdf"]).read_bytes()  # byte for byte
+        checks["steps one by one"] = ("typdoc, optdoc, ocrdoc and tagdoc through their own "
+                                      "command lines")
         status, answer, _, _ = _run([str(program), "run", str(work / "fehlt.jpg")])
         assert status == 2 and answer["error"] == "missing", answer
         checks["failure"] = "answers with its kind"
@@ -208,7 +216,7 @@ def check(program: Path, models: Path | None = None) -> dict[str, object]:
             [str(program), "run", str(photo), "--out", str(work / "prepared"), "--without",
              "ocrdoc", "--without", "tagdoc"], env)
         assert status == 0 and [(s["tool"], s["used"]) for s in answer["steps"]] == [
-            ("optdoc", True), ("ocrdoc", False), ("tagdoc", False)], answer
+            ("typdoc", True), ("optdoc", True), ("ocrdoc", False), ("tagdoc", False)], answer
         assert sorted(p.name for p in (work / "prepared").iterdir()) == [
             "foto.docrepro.json", "foto.pdf"], list((work / "prepared").iterdir())
         assert not _left(work, empty), _left(work, empty)
@@ -231,7 +239,7 @@ def check(program: Path, models: Path | None = None) -> dict[str, object]:
                  "--models", str(models)], env)
             assert status == 0, answer
             chain = json.loads(Path(answer["config"]).read_text(encoding="utf-8"))
-            page = chain["steps"][0]["config"]["pages"][0]
+            page = {s["tool"]: s for s in chain["steps"]}["optdoc"]["config"]["pages"][0]
             assert page["plan"]["rotation"] == 180 and page["models"] == ["page-orientation"], page
             text = json.loads(Path(answer["reading"]).read_text(encoding="utf-8"))["pages"][0]
             assert "Kalium" in text["text"], text["text"][:200]

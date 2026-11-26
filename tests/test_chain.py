@@ -16,7 +16,7 @@ from ocrdoc import ocr as ocrlib
 
 from docrepro.chain import EMBEDDED, Chain, load_chain
 from docrepro.errors import DocreproError
-from tests.synthetic import photo_of, scan
+from tests.synthetic import by_tool, in_use, photo_of, scan
 
 needs_engine = pytest.mark.skipif(not ocrlib.available_backends(), reason="no OCR engine")
 
@@ -40,16 +40,17 @@ def test_the_whole_way_again_from_the_chain_document(tmp_path: Path, report: Pat
                  "TemporaryDirectory", "SpooledTemporaryFile"):
         monkeypatch.setattr(tempfile, name, refused)
     first = Chain.open(original).run(tmp_path / "a")
-    assert [s["tool"] for s in first["steps"]] == ["optdoc", "ocrdoc", "tagdoc"]
-    assert all(s["used"] and s["dropped"] == [] for s in first["steps"])
-    assert first["not_installed"] == ["semdoc"]
+    assert in_use(first) == [("typdoc", False), ("optdoc", True), ("ocrdoc", True),
+                             ("tagdoc", True)]  # the original is a PDF: nothing to bind
+    assert all(s["dropped"] == [] for s in first["steps"] if s["used"])
+    assert first["not_installed"] == ["semdoc", "attdoc"]
     assert sorted(p.name for p in (tmp_path / "a").iterdir()) == [
         "scan.docrepro.json", "scan.md", "scan.pdf", "scan.reading.json"]
     chain = json.loads(Path(first["config"]).read_text(encoding="utf-8"))
     assert chain["format"] == "docrepro-chain" and chain["version"] == 2
-    assert [s["tool"] for s in chain["steps"]] == ["optdoc", "ocrdoc", "tagdoc"]
-    assert all(s["used"] is True for s in chain["steps"])
-    assert chain["steps"][0]["config"]["pages"][0]["plan"]["straighten"] is True
+    assert in_use(chain) == in_use(first)
+    assert by_tool(chain)["typdoc"] == {"tool": "typdoc", "used": False}
+    assert by_tool(chain)["optdoc"]["config"]["pages"][0]["plan"]["straighten"] is True
     with pymupdf.open(first["pdf"]) as doc:
         assert sorted(doc.embfile_names()) == [EMBEDDED, "ocrdoc.json", "optdoc.json",
                                                "tagdoc.json"]
@@ -74,7 +75,7 @@ def test_a_change_in_optdoc_and_a_persons_work_in_ocrdoc(tmp_path: Path, report:
     original = scan(report, tmp_path / "scan.pdf", rotation=1.5)
     first = Chain.open(original).run(tmp_path / "a")
     chain = load_chain(first["config"])
-    configs = {s["tool"]: s["config"] for s in chain["steps"]}
+    configs = {s["tool"]: s["config"] for s in chain["steps"] if "config" in s}
     optdoc_config, ocrdoc_config = configs["optdoc"], configs["ocrdoc"]
     # the person's correction, made in ocrdoc on optdoc's PDF as the chain made it
     work = tmp_path / "work"
@@ -154,18 +155,19 @@ def test_every_step_is_optional(tmp_path: Path, report: Path) -> None:
     in use, and the chain document makes the same files again."""
     original = scan(report, tmp_path / "scan.pdf")
     read = Chain.open(original, without=("optdoc",)).run(tmp_path / "read")
-    assert [(s["tool"], s["used"]) for s in read["steps"]] == [
-        ("optdoc", False), ("ocrdoc", True), ("tagdoc", True)]
-    assert "dropped" not in read["steps"][0] and "made_with" not in read["steps"][0]
+    assert in_use(read) == [("typdoc", False), ("optdoc", False), ("ocrdoc", True),
+                            ("tagdoc", True)]
+    assert by_tool(read)["optdoc"] == {"tool": "optdoc", "used": False}
     assert _embedded(read["pdf"]) == [EMBEDDED, "ocrdoc.json", "tagdoc.json"]
     with pymupdf.open(read["pdf"]) as doc:
         assert "Ramipril" in doc[0].get_text()  # ocrdoc read the original as it came
     chain = load_chain(read["config"])
-    assert chain["steps"][0] == {"tool": "optdoc", "used": False}
+    assert by_tool(chain)["optdoc"] == {"tool": "optdoc", "used": False}
     again = Chain.open(original, chain=chain).run(tmp_path / "read-again")
     assert _files(again) == _files(read)
 
     prepared = Chain.open(original, without=("ocrdoc", "tagdoc")).run(tmp_path / "prepared")
+    assert in_use(prepared)[:2] == [("typdoc", False), ("optdoc", True)]
     assert sorted(p.name for p in (tmp_path / "prepared").iterdir()) == [
         "scan.docrepro.json", "scan.pdf"]
     assert _embedded(prepared["pdf"]) == [EMBEDDED, "optdoc.json"]
@@ -187,14 +189,38 @@ def test_every_step_is_optional(tmp_path: Path, report: Path) -> None:
     assert caught.value.kind == "no-steps"
 
 
-def test_a_photo_needs_optdoc_to_become_a_pdf(tmp_path: Path, report: Path) -> None:
-    """Where optdoc is off, ocrdoc gets the original; a photo it cannot take, and says so
-    itself."""
+def test_a_picture_goes_on_as_a_pdf(tmp_path: Path, report: Path) -> None:
+    """typdoc binds a picture into a PDF, as medRDS says, and the steps after it take
+    that; without typdoc, optdoc makes a PDF of the picture it is handed; without both,
+    ocrdoc gets the picture, which (as it stands) it cannot take, and says so itself.
+    The chain document makes the same files again."""
     from ocrdoc.errors import OcrdocError
 
     photo = photo_of(report, tmp_path / "foto.jpg")
+    bound = Chain.open(photo, settings={"reader": "none"}).run(tmp_path / "bound")
+    assert in_use(bound) == [("typdoc", True), ("optdoc", True), ("ocrdoc", True),
+                             ("tagdoc", True)]
+    chain = load_chain(bound["config"])
+    held = by_tool(chain)["typdoc"]["config"]
+    assert held["format"] == "typdoc-config" and held["input"]["pictures"][0]["suffix"] == ".jpg"
+    # optdoc was handed typdoc's PDF, not the picture
+    assert by_tool(chain)["optdoc"]["config"]["input"]["suffix"] == ".pdf"
+    again = Chain.open(photo, chain=chain).run(tmp_path / "bound-again")
+    assert _files(again) == _files(bound)
+    read = Chain.open(photo, settings={"reader": "none"}, without=("optdoc",)).run(
+        tmp_path / "read")  # typdoc alone makes the PDF the later steps take
+    assert in_use(read)[:2] == [("typdoc", True), ("optdoc", False)]
+    assert _embedded(read["pdf"]) == [EMBEDDED, "ocrdoc.json", "tagdoc.json"]
+    with pymupdf.open(read["pdf"]) as doc:  # the photo itself is in it, byte for byte
+        assert photo.read_bytes() in doc.xref_stream_raw(doc[0].get_images()[0][0])
+    as_before = Chain.open(photo, settings={"reader": "none"}, without=("typdoc",)).run(
+        tmp_path / "as-before")
+    assert in_use(as_before)[:2] == [("typdoc", False), ("optdoc", True)]
+    assert by_tool(load_chain(as_before["config"]))["optdoc"]["config"]["input"]["suffix"] \
+        == ".jpg"
     with pytest.raises(OcrdocError) as caught:
-        Chain.open(photo, without=("optdoc",), settings={"reader": "none"}).run(tmp_path / "out")
+        Chain.open(photo, without=("typdoc", "optdoc"), settings={"reader": "none"}).run(
+            tmp_path / "out")
     assert caught.value.kind == "not-pdf"
     assert not (tmp_path / "out").exists()  # nothing written, nothing left
 
@@ -206,19 +232,22 @@ def test_a_step_switched_off_keeps_what_it_held(tmp_path: Path, report: Path) ->
     is not installed and was not in use."""
     first = Chain.open(report, settings={"reader": "none"}).run(tmp_path / "a")
     chain = load_chain(first["config"])
-    held = chain["steps"][2]["config"]
-    chain["steps"][2] = {"tool": "tagdoc", "used": False, "config": held}
-    chain["steps"].append({"tool": "semdoc", "used": False, "config": {"kept": True}})
+    held = by_tool(chain)["tagdoc"]["config"]
+    chain["steps"] = [*(s for s in chain["steps"] if s["tool"] != "tagdoc"),
+                      {"tool": "tagdoc", "used": False, "config": held},
+                      {"tool": "semdoc", "used": False, "config": {"kept": True}}]
     second = Chain.open(report, chain=chain).run(tmp_path / "b")
-    assert [(s["tool"], s["used"]) for s in second["steps"]] == [
-        ("optdoc", True), ("ocrdoc", True), ("tagdoc", False)]
+    assert in_use(second) == [("typdoc", False), ("optdoc", True), ("ocrdoc", True),
+                              ("tagdoc", False)]
     assert _embedded(second["pdf"]) == [EMBEDDED, "ocrdoc.json", "optdoc.json"]
     written = load_chain(second["config"])
-    assert [(s["tool"], s["used"]) for s in written["steps"]] == [
-        ("optdoc", True), ("ocrdoc", True), ("semdoc", False), ("tagdoc", False)]
-    assert written["steps"][3] == {"tool": "tagdoc", "used": False, "config": held}
-    assert written["steps"][2] == {"tool": "semdoc", "used": False, "config": {"kept": True}}
-    back = {**written, "steps": [*written["steps"][:2],  # without the entry carried along
+    assert in_use(written) == [("typdoc", False), ("optdoc", True), ("ocrdoc", True),
+                               ("semdoc", False), ("tagdoc", False)]
+    assert by_tool(written)["tagdoc"] == {"tool": "tagdoc", "used": False, "config": held}
+    assert by_tool(written)["semdoc"] == {"tool": "semdoc", "used": False,
+                                          "config": {"kept": True}}
+    back = {**written, "steps": [*(s for s in written["steps"]  # without the entry carried
+                                   if s["tool"] in ("typdoc", "optdoc", "ocrdoc")),
                                  {"tool": "tagdoc", "used": True, "config": held}]}
     third = Chain.open(report, chain=back).run(tmp_path / "c")
     assert Path(third["pdf"]).read_bytes() == Path(first["pdf"]).read_bytes()

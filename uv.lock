@@ -219,13 +219,14 @@ dependencies = [
 
 [[package]]
 name = "docrepro"
-version = "0.3.0"
+version = "0.4.0"
 source = { editable = "." }
 dependencies = [
     { name = "doccor" },
     { name = "ocrdoc", extra = ["barcodes", "ocr", "tables"] },
     { name = "optdoc", extra = ["cleanup"] },
     { name = "tagdoc" },
+    { name = "typdoc" },
 ]
 
 [package.optional-dependencies]
@@ -254,6 +255,7 @@ requires-dist = [
     { name = "optdoc", extras = ["gui"], marker = "extra == 'gui'", git = "https://github.com/fre-ms/optdoc?tag=v0.8.0" },
     { name = "tagdoc", git = "https://github.com/fre-ms/tagdoc?tag=v0.1.1" },
     { name = "tagdoc", extras = ["gui"], marker = "extra == 'gui'", git = "https://github.com/fre-ms/tagdoc?tag=v0.1.1" },
+    { name = "typdoc", git = "https://github.com/fre-ms/typdoc?tag=v0.1.0" },
 ]
 provides-extras = ["gui"]
 
@@ -1254,6 +1256,16 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/0d/ea/b2a5bd54b28a324dae8211928b2d730b6547500342c7e6c6dea08bd0a485/tqdm-4.70.1.tar.gz", hash = "sha256:cefd0eca11b2a37a3aee776544d4f4ae913f02688135b5556b8788dfa474afc4", size = 171846, upload-time = "2026-09-11T07:25:16.601Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a7/03/921a3d3c75785aca9ebfbfcabfbc3a1be12e2ab5265deb026d55a5a3f83e/tqdm-4.70.1-py3-none-any.whl", hash = "sha256:c293e525e6fef9c20e8728fd4612df02a0aa31bb5fe91ecd93e123b1b7bffa73", size = 80199, upload-time = "2026-09-11T07:25:14.599Z" },
+]
+
+[[package]]
+name = "typdoc"
+version = "0.1.0"
+source = { git = "https://github.com/fre-ms/typdoc?tag=v0.1.0#286bcca75f323f2f4cc5623f2f31752188015fe4" }
+dependencies = [
+    { name = "doccor" },
+    { name = "pillow" },
+    { name = "pillow-heif" },
 ]
 
 [[package]]

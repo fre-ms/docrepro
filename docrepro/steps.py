@@ -3,20 +3,23 @@
 =========  =====  ==========================================  ===========================
 tool       order  its one step                                takes
 =========  =====  ==========================================  ===========================
-optdoc     10     make the page faithful                      the original (photo, scan)
+typdoc     5      change the type: bind pictures into a PDF   the original, a picture
+optdoc     10     make the page faithful                      typdoc's PDF, or the original
 ocrdoc     20     recognise: areas, text, tables, barcodes    optdoc's PDF
 semdoc     30     understand: medical terms, identifying      ocrdoc's reading
                   information (lexterm, lexident); planned
 tagdoc     40     describe: title, kind, date, authors (the   ocrdoc's PDF (and, once
                   metadata of medRDS)                         there, semdoc's annotations)
+attdoc     50     sign: a time stamp, a person's signature    the document as the steps
+                  (resting on TimeAttest); planned            before left it
 =========  =====  ==========================================  ===========================
 
 Every step keeps the same contract (``docs/family-design.md`` in optdoc): it has a
 configuration document of its own (``<stem>.<tool>.json``), from which it makes its
 result again byte for byte, and which the PDF it writes carries.  docrepro reaches each
 step through an :class:`Adapter`.  optdoc's and ocrdoc's are here; any other step brings
-its own through the entry-point group ``docrepro.steps``, named after the step (tagdoc
-does; semdoc is to)::
+its own through the entry-point group ``docrepro.steps``, named after the step (typdoc
+and tagdoc do; semdoc and attdoc are to)::
 
     [project.entry-points."docrepro.steps"]
     semdoc = "semdoc.docrepro:ADAPTER"
@@ -29,8 +32,14 @@ that is not installed is left out; a chain document that used one is refused
 past the others: a step that is switched off hands on what it got, untouched.  OCR without
 preparation, preparation without OCR, a description alone: each is a chain.  What a step
 cannot do without another it says itself (``needs``: semdoc needs ocrdoc's reading), and a
-step that gets what it cannot take says so with its own error (ocrdoc reads PDFs: a photo
-needs optdoc to become one).
+step that gets what it cannot take says so with its own error.
+
+**No step forces a file type.**  Only typdoc changes a document's type: it binds pictures
+into a PDF as medRDS says, and has nothing to do for an original that is a PDF (it is in
+use for pictures alone, unless it is left out).  The steps after it take what they are
+handed, typdoc's PDF or the original.  (As the tools stand, optdoc still makes a PDF of a
+picture it is handed, and ocrdoc and tagdoc read PDFs: a picture needs typdoc or optdoc
+to go on.  They are to learn to keep a picture a picture.)
 
 **Models.**  A step may do better with a model, an optional download (:mod:`doccor.models`).
 An adapter says so with two members docrepro looks for and does not demand: ``catalogue``,
@@ -69,8 +78,16 @@ class Step:
     planned: bool = False
     needs: tuple[str, ...] = ()
 
+    def has_work(self, original: Path) -> bool:
+        """False where the step has nothing to do for an original of that type: the step
+        that binds pictures, for a PDF."""
+        return not (self.takes == "pictures" and original.suffix.lower() == ".pdf")
+
 
 STEPS: tuple[Step, ...] = (
+    Step("typdoc", 5, "pictures", "pdf",
+         {"en": "changes the type: binds pictures into one PDF, each in it byte for byte",
+          "de": "ändert den Typ: bindet Bilder zu einem PDF, jedes Byte für Byte darin"}),
     Step("optdoc", 10, "original", "pdf",
          {"en": "makes the page faithful: upright, unwarped, evenly lit, in its colours",
           "de": "macht die Seite getreu: aufrecht, entzerrt, gleichmäßig hell, in ihren Farben"}),
@@ -84,6 +101,10 @@ STEPS: tuple[Step, ...] = (
     Step("tagdoc", 40, "pdf", "pdf with metadata (medRDS 7), or a sidecar",
          {"en": "describes the document: title, kind, date, authors, the people it names",
           "de": "beschreibt das Dokument: Titel, Art, Datum, Autoren, die Personen darin"}),
+    Step("attdoc", 50, "document", "the document signed, or its signature beside it",
+         {"en": "signs the document: a time stamp, a person's signature",
+          "de": "signiert das Dokument: ein Zeitstempel, die Signatur einer Person"},
+         planned=True),
 )
 
 

@@ -1,6 +1,6 @@
 [project]
 name = "docrepro"
-version = "0.3.0"
+version = "0.4.0"
 description = "Reproduces photographed and scanned documents as digital documents: optdoc, ocrdoc and tagdoc (semdoc to come) in one chain, one window and one program, every step reproducible."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -21,7 +21,9 @@ dependencies = [
   # the core the tools share: configuration documents, errors, the command line's manners,
   # no network, the window's building blocks
   "doccor>=0.2",
-  # the steps; a step that is missing is left out of the chain and the window
+  # the steps; a step that is missing is left out of the chain and the window.
+  # Step 5 joins through its entry point docrepro.steps
+  "typdoc>=0.1",
   "optdoc[cleanup]>=0.8",
   "ocrdoc[ocr,tables,barcodes]>=0.2",
   # step 40; it joins through its entry point docrepro.steps
@@ -37,6 +39,7 @@ doccor = { git = "https://github.com/fre-ms/doccor", tag = "v0.2.0" }
 optdoc = { git = "https://github.com/fre-ms/optdoc", tag = "v0.8.0" }
 ocrdoc = { git = "https://github.com/fre-ms/ocrdoc", tag = "v0.2.0" }
 tagdoc = { git = "https://github.com/fre-ms/tagdoc", tag = "v0.1.1" }
+typdoc = { git = "https://github.com/fre-ms/typdoc", tag = "v0.1.0" }
 
 [project.scripts]
 docrepro = "docrepro.cli:main"

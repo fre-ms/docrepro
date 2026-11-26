@@ -3,7 +3,7 @@
 ship beside an application (a Tauri sidecar, for a records app).
 
 Build it with ``packaging/build.py``, which names the file after the target platform and
-tries it out.  Everything travels inside: Python; optdoc, ocrdoc and tagdoc with doccor;
+tries it out.  Everything travels inside: Python; typdoc, optdoc, ocrdoc and tagdoc with doccor;
 PyMuPDF, OpenCV, ONNX Runtime, RapidOCR with its models, pillow-heif, Camelot with pandas
 and pdfium for the tables, zxing-cpp for the barcodes, PySide6 (Qt) for the windows.
 Nothing is downloaded at run time.
@@ -27,7 +27,7 @@ from PyInstaller.utils.hooks import (
 
 root = Path(SPECPATH).parent  # noqa: F821 (given by PyInstaller)
 identity = os.environ.get("DOCREPRO_CODESIGN_IDENTITY") or None
-TOOLS = ("docrepro", "doccor", "optdoc", "ocrdoc", "tagdoc")
+TOOLS = ("docrepro", "doccor", "typdoc", "optdoc", "ocrdoc", "tagdoc")
 
 datas, binaries, hiddenimports = [], [], []
 # rapidocr: its models and settings; camelot and playa: their parsers; pypdfium2: pdfium
@@ -44,6 +44,7 @@ for tool in TOOLS:
 # a step joins docrepro through its entry point (docrepro.steps), which is read from the
 # metadata of its distribution
 datas += copy_metadata("tagdoc")
+datas += copy_metadata("typdoc")
 # packages compiled with mypyc (playa) import a helper module with a hashed name that
 # PyInstaller does not see
 for path in sys.path:

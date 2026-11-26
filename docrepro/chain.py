@@ -97,7 +97,8 @@ class Chain:
     else fresh with the settings of the steps (``settings``, each step takes those it
     knows: ``paper``, ``photo``, ``colour_pages`` … for optdoc, ``reader``, ``languages``,
     ``cells`` … for ocrdoc).  ``used`` names the steps in use for this document: those the
-    chain document says, else every installed step but the ones left out (``without``).
+    chain document says, else every installed step that has work for the original (typdoc
+    has none for a PDF) but the ones left out (``without``).
     ``configs`` holds the steps' configuration documents, of the steps in use and of those
     switched off that keep one.  ``models`` is the folder of models the steps may use
     (None: none); it is no setting, and the chain document does not name it."""
@@ -142,8 +143,9 @@ class Chain:
                    if entry.get("config") is not None}
         made = cls(original, sha256, original.stat().st_size, configs, dict(settings or {}))
         known = {step.name for step, _adapter in made.steps}
-        if chain is None:
-            made.used = known - set(without)
+        if chain is None:  # every step that has work for this original, but those left out
+            made.used = {step.name for step, _adapter in made.steps
+                         if step.has_work(original)} - set(without)
         else:  # the document decides: a step it does not name was not in use
             made.used = {name for name, entry in entries.items() if entry["used"]}
             for name, entry in entries.items():

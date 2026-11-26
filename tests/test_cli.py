@@ -40,7 +40,9 @@ def test_about(capsys: pytest.CaptureFixture[str]) -> None:
     assert status == 0 and answer["interface"] == INTERFACE
     assert answer["made_with"] == f"docrepro {__version__}"
     steps = {s["tool"]: s for s in answer["steps"]}
-    assert list(steps) == ["optdoc", "ocrdoc", "semdoc", "tagdoc"]
+    assert list(steps) == ["typdoc", "optdoc", "ocrdoc", "semdoc", "tagdoc", "attdoc"]
+    assert steps["typdoc"]["installed"] and steps["typdoc"]["order"] == 5
+    assert steps["attdoc"]["planned"] and not steps["attdoc"]["installed"]
     assert steps["optdoc"]["installed"] and steps["ocrdoc"]["installed"]
     assert steps["tagdoc"]["installed"] and not steps["tagdoc"]["planned"]
     assert steps["semdoc"]["planned"] and steps["semdoc"]["version"] is None
@@ -56,6 +58,10 @@ def test_every_steps_own_command_line(capsys: pytest.CaptureFixture[str]) -> Non
     assert status == 0 and answer["made_with"].startswith("ocrdoc ")
     status, answer, _ = _answer(capsys, ["tagdoc", "about"])
     assert status == 0 and answer["made_with"].startswith("tagdoc ")
+    status, answer, _ = _answer(capsys, ["typdoc", "about"])
+    assert status == 0 and answer["made_with"].startswith("typdoc ")
+    status, answer, _ = _answer(capsys, ["attdoc", "run", "x.pdf"])
+    assert status == 2 and answer["error"] == "step-missing"
     status, answer, _ = _answer(capsys, ["semdoc", "run", "x.pdf"])
     assert status == 2 and answer["error"] == "step-missing"
     assert answer["details"] == {"step": "semdoc"} and "semdoc" in answer["message"]["de"]
@@ -99,7 +105,8 @@ def test_run_on_the_command_line(tmp_path: Path, report: Path) -> None:
     run = _run(["run", str(original), "--out", str(tmp_path / "out"), "--progress"], env=env)
     assert run.returncode == 0, run.stdout
     answer = json.loads(run.stdout)
-    assert [s["tool"] for s in answer["steps"]] == ["optdoc", "ocrdoc", "tagdoc"]
+    assert [(s["tool"], s["used"]) for s in answer["steps"]] == [
+        ("typdoc", False), ("optdoc", True), ("ocrdoc", True), ("tagdoc", True)]
     assert answer["pages"] == 2
     lines = [json.loads(z) for z in run.stderr.splitlines()]
     assert lines == [*({"step": s, "page": n, "of": 2} for s in ("optdoc", "ocrdoc")
@@ -113,7 +120,7 @@ def test_run_on_the_command_line(tmp_path: Path, report: Path) -> None:
                  "--without", "tagdoc", "--progress"], env=env)
     assert only.returncode == 0, only.stdout
     assert [(s["tool"], s["used"]) for s in json.loads(only.stdout)["steps"]] == [
-        ("optdoc", False), ("ocrdoc", True), ("tagdoc", False)]
+        ("typdoc", False), ("optdoc", False), ("ocrdoc", True), ("tagdoc", False)]
     assert {json.loads(z)["step"] for z in only.stderr.splitlines()} == {"ocrdoc"}
     refused = _run(["run", str(original), "--out", str(tmp_path / "x"), "--config",
                     answer["config"], "--without", "tagdoc"], env=env)

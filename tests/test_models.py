@@ -16,7 +16,7 @@ from optdoc import models as optdoc_models
 
 from docrepro.chain import Chain, load_chain
 from docrepro.cli import main
-from tests.synthetic import on_its_head
+from tests.synthetic import by_tool, on_its_head
 
 MODELS = Path(os.environ["DOCREPRO_MODELS"]) if os.environ.get("DOCREPRO_MODELS") else None
 needs_model = pytest.mark.skipif(
@@ -61,12 +61,15 @@ def test_every_step_gets_the_folder(tmp_path: Path, report: Path) -> None:
     chain.models = folder
     seen = {}
     for step, adapter in chain.steps:
+        if step.name not in chain.used:
+            continue
         project = chain.opened(adapter, report, None, tmp_path / "work" / step.name)
         try:
             seen[step.name] = getattr(project, "models", "takes none")
         finally:
             adapter.close(project)
     assert seen == {"optdoc": folder, "ocrdoc": folder, "tagdoc": "takes none"}
+    assert "typdoc" not in chain.used  # a PDF: nothing to bind
     with_folder = chain.run(tmp_path / "a")
     without = Chain.open(report, settings={"reader": "none"}).run(tmp_path / "b")
     for key in ("pdf", "config"):
@@ -84,7 +87,7 @@ def test_a_scan_on_its_head_comes_out_upright_and_read(
                                      "--models", str(MODELS)])
     assert status == 0
     chain = load_chain(first["config"])
-    pages = chain["steps"][0]["config"]["pages"]
+    pages = by_tool(chain)["optdoc"]["config"]["pages"]
     assert all(p["plan"]["rotation"] == 180 and p["models"] == ["page-orientation"]
                for p in pages)
     with pymupdf.open(first["pdf"]) as doc:

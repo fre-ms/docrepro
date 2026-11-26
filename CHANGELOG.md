@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.4.0 (2026-11-27)
+
+typdoc joins as step 5: the one step that changes a document's type. Interface 2 and
+`docrepro-chain` version 2 stay.
+
+- **typdoc** (0.1.0) binds a picture into a PDF as medRDS 9.5 says (the picture in it byte for
+  byte) and hands that on. It is in use for pictures unless left out (`--without typdoc`, or its
+  switch in the window); for a PDF it has nothing to do and is not in use. Without it a picture is
+  handed to optdoc as it came, which makes a PDF of it as before.
+- **optdoc can be left out for a picture** now: ocrdoc then reads the picture as typdoc bound
+  it, unprepared. With typdoc and optdoc both left out, ocrdoc is handed the picture and answers
+  `not-pdf` (ocrdoc and tagdoc do not read pictures yet).
+- **The window** shows typdoc among the steps (no tab: it has nothing to decide). Of typdoc and
+  optdoc, the one that alone makes a PDF of a picture cannot be switched off. Switching typdoc
+  hands optdoc another file: optdoc starts anew, and the status line says so where a person's
+  plans went.
+- **attdoc**, the signing step to come (order 50), has its place in the list of steps.
+- A step may say that it has no work for an original (`Step.has_work`).
+- The standalone program has typdoc inside; its checks bind the photo through typdoc's own
+  command line and through the chain.
+
 ## 0.3.0 (2026-11-27)
 
 Every step is optional. Interface 2; `docrepro-chain` version 2.

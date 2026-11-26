@@ -6,11 +6,15 @@ and text, tagdoc's description), and three ways out.
 **Every step is optional.**  The switches on the left say which steps are in use for this
 document; a step that is off hands on what it got, and its tabs are closed and marked.
 Beside each switch stands what became of the step: off, in use as suggested, changed by
-hand, or to be made anew because a step before it changed.  A photo or an image becomes a
-PDF through optdoc, so optdoc stays on for one (a page can still be left as it came in
-its tab).  A step that needs another (semdoc needs ocrdoc's reading) goes off with it.
-What a person decided in a step that is switched off is kept, and back when the step is
-switched on again.
+hand, or to be made anew because a step before it changed.  A step that needs another
+(semdoc needs ocrdoc's reading) goes off with it.  What a person decided in a step that is
+switched off is kept, and back when the step is switched on again.
+
+typdoc, which binds a picture into a PDF, has no tab: it has nothing to decide.  For a PDF
+it has nothing to do.  As the tools stand, a picture goes on as a PDF, through typdoc or
+through optdoc (which makes one of a picture it is handed): of the two, the one that is on
+alone cannot be switched off.  Switching typdoc hands optdoc another file, so optdoc
+starts anew then, and the status line says so.
 
 The steps work as in their own windows; their panels are theirs.  What joins them: when
 the person turns from optdoc's tab to a later one after changing a page there, optdoc's
@@ -92,12 +96,20 @@ class ChainWindow(QMainWindow):
         self._stale: set[str] = set()  # steps that may have to be made anew
         adapters = {step.name: made for step, made in chain.steps}
         self.optdoc, self.ocrdoc = adapters["optdoc"], adapters["ocrdoc"]
+        self.typdoc: Any = adapters.get("typdoc")  # None where it is not installed
         self.used: set[str] = set(chain.used)
-        # a photo or an image becomes a PDF through optdoc: it cannot be left out for one
+        # a picture goes on as a PDF, through typdoc or through optdoc; a PDF needs neither
         self.photo = chain.original.suffix.lower() != ".pdf"
-        if self.photo:
-            self.used.add("optdoc")
-        self.prepared_project = chain.opened(self.optdoc, chain.original,
+        if not self.photo:
+            self.used.discard("typdoc")
+        elif not {"typdoc", "optdoc"} & self.used:
+            self.used.add("typdoc" if self.typdoc is not None else "optdoc")
+        self.bound_project: Any = None
+        if self.typdoc is not None and self.photo:
+            self.bound_project = chain.opened(self.typdoc, chain.original,
+                                              chain.configs.get("typdoc"), work / "typdoc")
+        self._origin = self._bound()  # what optdoc is handed: typdoc's PDF, or the original
+        self.prepared_project = chain.opened(self.optdoc, self._origin,
                                              chain.configs.get("optdoc"), work / "optdoc")
         self.read_project: Any = None
         self._prepared_key = b""
@@ -206,17 +218,22 @@ class ChainWindow(QMainWindow):
 
     # -- which steps are in use ----------------------------------------------------------------
     def state(self, name: str) -> str:
-        """What became of a step: "missing" (its tool is not installed), "off", "stale"
+        """What became of a step: "missing" (its tool is not installed), "nothing" (it has
+        nothing to do for this original: typdoc for a PDF), "off", "stale"
         (in use, and what it made is to be made anew since a step before it changed),
         "person" (in use, a person decided something in it) or "auto" (in use as
         suggested)."""
         adapters = {step.name: made for step, made in self.chain.steps}
         if name not in adapters:
             return "missing"
+        if name == "typdoc" and not self.photo:
+            return "nothing"
         if name not in self.used:
             return "off"
-        if name == "optdoc":
-            project: Any = self.prepared_project
+        if name == "typdoc":
+            project: Any = self.bound_project
+        elif name == "optdoc":
+            project = self.prepared_project
         elif name == "ocrdoc":
             project = self.read_project
         else:
@@ -245,9 +262,13 @@ class ChainWindow(QMainWindow):
             switch.blockSignals(True)
             switch.setChecked(name in self.used)
             switch.blockSignals(False)
-            fixed = name == "optdoc" and self.photo
-            switch.setEnabled(state != "missing" and not fixed and unmet is None)
-            sign = OFF if state in ("missing", "off") else IN_USE
+            # of typdoc and optdoc, the one that alone makes a PDF of a picture stays on
+            other = {"typdoc": "optdoc", "optdoc": "typdoc"}.get(name)
+            fixed = (self.photo and other is not None and name in self.used
+                     and other not in self.used)
+            switch.setEnabled(state not in ("missing", "nothing") and not fixed
+                              and unmet is None)
+            sign = OFF if state in ("missing", "nothing", "off") else IN_USE
             words = self.w(f"chain_{state}")
             if fixed:
                 words = f"{words} ({self.w('chain_photo')})"
@@ -283,8 +304,10 @@ class ChainWindow(QMainWindow):
                 self.used.discard(step.name)
         self.changed = True
         self._stale |= self._later_than(name)
-        if on and name != "optdoc":
+        if on and name not in ("typdoc", "optdoc"):
             self._stale.add(name)  # what it gets may have changed while it was off
+        if name == "typdoc":
+            self._rebind()
         self._stale &= self.used
         self._refresh()
         if not self._leave_closed_tab():
@@ -302,21 +325,45 @@ class ChainWindow(QMainWindow):
         return False
 
     # -- the steps joined ----------------------------------------------------------------------
+    def _bound(self) -> Path:
+        """What optdoc is handed: typdoc's PDF where typdoc is in use, else the original."""
+        if "typdoc" not in self.used or self.bound_project is None:
+            return self.chain.original
+        self._round += 1
+        folder = self.work / "typdoc" / str(self._round)
+        made: Path = self.typdoc.write(self.bound_project, folder, self.chain.original.stem,
+                                       None)["pdf"]
+        return made
+
+    def _rebind(self) -> None:
+        """typdoc was switched: optdoc is handed another file and starts anew on it (its
+        plans are of the file it had); the status line says so where a person's went."""
+        old = self.prepared_project
+        lost = registry.by_person(self.optdoc, old)
+        self._origin = self._bound()
+        self.prepared_project = self.chain.opened(self.optdoc, self._origin, None,
+                                                  self.work / "optdoc")
+        self.cleanup.project = self.prepared_project
+        self.optdoc.close(old)
+        self._stale.discard("optdoc")
+        self._note = self.w("chain_rebound") if lost else ""
+        self.status.setText(self._note)
+
     def _key(self) -> bytes:
         """What the steps after optdoc get, named: optdoc's configuration document as it
-        is now where optdoc is in use, else that it is off."""
+        is now where optdoc is in use, else that it is off and what was handed on."""
         if "optdoc" not in self.used:
-            return b"off"
+            return b"off|typdoc" if self._origin != self.chain.original else b"off"
         return documents.document_bytes(self.optdoc.config(self.prepared_project))
 
     def _remake(self, _previous: Any) -> tuple[Any, list[int], bytes, Path, bool]:
-        """What optdoc gives as it is now (its PDF as its plans are, or the original where
-        it is off), and ocrdoc opened on it with what it held (its configuration document
-        so far, else the chain's): the new project, the pages that lost a person's
-        decisions, what it was made from (by name and as a file), and whether ocrdoc had
-        to start anew (what it held belongs to another file: optdoc was switched off, and
-        the original carries no frames).  A new folder each time, so that the old project
-        can still be closed cleanly."""
+        """What optdoc gives as it is now (its PDF as its plans are, or what it was
+        handed where it is off), and ocrdoc opened on it with what it held (its
+        configuration document so far, else the chain's): the new project, the pages that
+        lost a person's decisions, what it was made from (by name and as a file), and
+        whether ocrdoc had to start anew (what it held belongs to another file: optdoc
+        was switched off, and what it was handed carries no frames).  A new folder each
+        time, so that the old project can still be closed cleanly."""
         self._round += 1
         key = self._key()
         if "optdoc" in self.used:
@@ -324,7 +371,7 @@ class ChainWindow(QMainWindow):
             pdf = self.optdoc.write(self.prepared_project, folder, self.chain.original.stem,
                                     None)["pdf"]
         else:
-            pdf = self.chain.original
+            pdf = self._origin
         held = (self.ocrdoc.config(self.read_project) if self.read_project is not None
                 else self.chain.configs.get("ocrdoc"))
         anew = False
@@ -341,7 +388,7 @@ class ChainWindow(QMainWindow):
         """Put the new ocrdoc project in place of the old one, in every panel, and say what
         became of the person's decisions."""
         old, self.read_project, self._prepared_key = self.read_project, project, key
-        self._read_source, self._read_on_optdoc = pdf, key != b"off"
+        self._read_source, self._read_on_optdoc = pdf, not key.startswith(b"off")
         self._stale.discard("ocrdoc")
         for name in ("filters", "areas", "text"):
             panel = getattr(self, name, None)
@@ -502,6 +549,8 @@ class ChainWindow(QMainWindow):
         self._commit_later()
         found: dict[str, dict[str, Any]] = {}
         held = self.chain.configs
+        if self.bound_project is not None and ("typdoc" in self.used or "typdoc" in held):
+            found["typdoc"] = self.typdoc.config(self.bound_project)
         if "optdoc" in self.used or "optdoc" in held \
                 or registry.by_person(self.optdoc, self.prepared_project):
             found["optdoc"] = self.optdoc.config(self.prepared_project)
@@ -510,7 +559,7 @@ class ChainWindow(QMainWindow):
                      or registry.by_person(self.ocrdoc, self.read_project)):
             found["ocrdoc"] = self.ocrdoc.config(self.read_project)
         for step, made in self.chain.steps:
-            if step.name in ("optdoc", "ocrdoc"):
+            if step.name in ("typdoc", "optdoc", "ocrdoc"):
                 continue
             project = self.later_projects.get(step.name)
             if project is not None:
@@ -609,6 +658,8 @@ class ChainWindow(QMainWindow):
 
     def release(self) -> None:
         """Close the steps' projects."""
+        if self.bound_project is not None:
+            self.typdoc.close(self.bound_project)
         self.optdoc.close(self.prepared_project)
         if self.read_project is not None:
             self.ocrdoc.close(self.read_project)

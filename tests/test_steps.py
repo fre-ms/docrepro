@@ -16,10 +16,15 @@ from docrepro.errors import DocreproError
 
 
 def test_the_steps_and_their_order() -> None:
-    assert [s.name for s in steps.STEPS] == ["optdoc", "ocrdoc", "semdoc", "tagdoc"]
+    assert [s.name for s in steps.STEPS] == ["typdoc", "optdoc", "ocrdoc", "semdoc", "tagdoc",
+                                             "attdoc"]
     assert [s.order for s in steps.STEPS] == sorted(s.order for s in steps.STEPS)
-    assert [s.name for s in steps.STEPS if s.planned] == ["semdoc"]
-    assert [s.name for s, _a in steps.installed()] == ["optdoc", "ocrdoc", "tagdoc"]
+    assert [s.name for s in steps.STEPS if s.planned] == ["semdoc", "attdoc"]
+    assert [s.name for s, _a in steps.installed()] == ["typdoc", "optdoc", "ocrdoc", "tagdoc"]
+    typdoc = steps.by_name("typdoc")
+    assert typdoc is not None  # the one step that changes the type: no work for a PDF
+    assert typdoc.has_work(Path("foto.HEIC")) and not typdoc.has_work(Path("scan.pdf"))
+    assert all(s.has_work(Path("scan.pdf")) for s in steps.STEPS if s.name != "typdoc")
     for step in steps.STEPS:
         assert set(step.does) == {"en", "de"}
 
@@ -66,10 +71,12 @@ def test_a_step_to_come_joins_by_its_entry_point(tmp_path: Path, report: Path,
         return real(**kwargs)
 
     monkeypatch.setattr(importlib.metadata, "entry_points", entry_points)
-    assert [s.name for s, _a in steps.installed()] == ["optdoc", "ocrdoc", "semdoc", "tagdoc"]
+    assert [s.name for s, _a in steps.installed()] == ["typdoc", "optdoc", "ocrdoc", "semdoc",
+                                                       "tagdoc"]
     answer = Chain.open(report, settings={"reader": "none"}).run(tmp_path / "out")
-    assert [s["tool"] for s in answer["steps"]] == ["optdoc", "ocrdoc", "semdoc", "tagdoc"]
-    assert answer["not_installed"] == []
+    assert [s["tool"] for s in answer["steps"] if s["used"]] == ["optdoc", "ocrdoc", "semdoc",
+                                                                 "tagdoc"]
+    assert answer["not_installed"] == ["attdoc"]
     assert Path(answer["annotations"]).name == "befund.annotations.json"
     chain = Path(answer["config"]).read_text(encoding="utf-8")
     assert '"semdoc-annotations"' in chain and '"semdoc 0.0.1"' in chain
@@ -80,7 +87,8 @@ def test_a_step_to_come_joins_by_its_entry_point(tmp_path: Path, report: Path,
         "step-needs", {"step": "semdoc", "needs": "ocrdoc"})
     fewer = Chain.open(report, without=("ocrdoc", "semdoc")).run(tmp_path / "fewer")
     assert [(s["tool"], s["used"]) for s in fewer["steps"]] == [
-        ("optdoc", True), ("ocrdoc", False), ("semdoc", False), ("tagdoc", True)]
+        ("typdoc", False), ("optdoc", True), ("ocrdoc", False), ("semdoc", False),
+        ("tagdoc", True)]
 
 
 def test_a_persons_decisions_in_a_configuration_document() -> None:

@@ -1,13 +1,14 @@
 # docrepro as a standalone program
 
 For an application that ships docrepro beside it rather than inside it (a records app, as a Tauri
-sidecar): **one program with every step in it**, optdoc, ocrdoc and tagdoc with doccor, Python,
+sidecar): **one program with every step in it**, typdoc, optdoc, ocrdoc and tagdoc with doccor, Python,
 PyMuPDF, OpenCV, ONNX Runtime, RapidOCR with its models, pillow-heif, Camelot with pandas and pdfium
 for the tables, zxing-cpp for the barcodes, PySide6 (Qt Widgets) for the windows. It needs no Python
 on the computer, loads nothing at run time and never goes on the network while it works (models are
 an optional download on request, below). The application talks to
 it through the command line described in [interface.md](interface.md); every step's own command
-line is in it too (`docrepro optdoc …`, `docrepro ocrdoc …`, `docrepro tagdoc …`), so that an
+line is in it too (`docrepro typdoc …`, `docrepro optdoc …`, `docrepro ocrdoc …`, `docrepro tagdoc …`),
+so that an
 application ships one program, not one per step.
 
 ## Build
@@ -30,7 +31,7 @@ This writes into `dist/`:
 
 and then tries the program out the way an application uses it:
 
-- `about` (optdoc, ocrdoc and tagdoc installed, the window there) and each step's own `about` (the
+- `about` (typdoc, optdoc, ocrdoc and tagdoc installed, the window there) and each step's own `about` (the
   clean-up, HEIC, RapidOCR, the filters, tables and barcodes, the standard tagdoc follows);
 - `run` on an invented photographed laboratory report with the temporary, home and cache folders
   pointed at empty folders, which must stay empty: the page prepared, its table found with its rows,
@@ -38,7 +39,8 @@ and then tries the program out the way an application uses it:
 - `run --config` with the chain document it wrote: the same four files, byte for byte;
 - `edit --self-test`, which goes through the window without a person, off screen: every tab shown,
   the same PDF, nothing left behind;
-- the steps one by one through their own command lines;
+- the steps one by one through their own command lines (typdoc binds the photo: it is in the
+  PDF byte for byte);
 - a failure, which must answer with its kind;
 - `run --without ocrdoc --without tagdoc`: prepared only, the PDF and the chain document;
 - `models list`: the models the steps can use, each with its step;

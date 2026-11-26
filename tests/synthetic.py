@@ -103,6 +103,16 @@ def scan(report: Path, target: Path, dpi: int = 200, noise: float = 0.0,
     return target
 
 
+def by_tool(chain: dict) -> dict[str, dict]:
+    """The entries of a chain document (or of an answer's ``steps``), by step."""
+    return {entry["tool"]: entry for entry in chain["steps"]}
+
+
+def in_use(listed: dict) -> list[tuple[str, bool]]:
+    """Every step of a chain document or an answer, and whether it was in use."""
+    return [(entry["tool"], entry["used"]) for entry in listed["steps"]]
+
+
 def on_its_head(report: Path, target: Path) -> Path:
     """A scan of the document with every page standing on its head."""
     from PIL import Image
