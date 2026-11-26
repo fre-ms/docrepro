@@ -21,13 +21,20 @@ computer, and nothing is to be written outside the folder given.  The library re
 ``ORT_DISABLE_TELEMETRY`` once, when it is loaded; :func:`no_telemetry` sets it, to be
 called before ONNX Runtime is loaded (its own ``disable_telemetry_events()`` comes too
 late: the queue is set up by then).  With it, nothing is written and nothing is queued.
+
+**The one door.**  A model a step may use is fetched on a person's request and never
+otherwise (:mod:`doccor.models`): the command ``<tool> models fetch`` opens the door for
+the time of that download with :func:`network_allowed` and closes it again.  Nothing else
+in the tools calls it; no document is open while it is.
 """
 
 from __future__ import annotations
 
+import contextlib
 import os
 import socket
 import sys
+from collections.abc import Iterator
 from typing import Any
 
 from doccor.errors import DocError
@@ -35,6 +42,8 @@ from doccor.errors import DocError
 attempts = 0  # how many times something tried to go out since the guard was set
 _closed = False
 _tool = "doccor"  # the tool that closed the door, named in the error
+_GUARDED = ("socket", "getaddrinfo", "gethostbyname", "gethostbyname_ex", "create_connection")
+_real: dict[str, Any] = {}  # what the guard replaced, for the one door
 
 
 class NetworkForbidden(DocError):
@@ -81,12 +90,34 @@ def forbid_network(tool: str = "doccor") -> None:
     _tool = tool
     if _closed:
         return
+    _real.update({name: getattr(socket, name) for name in _GUARDED})
+    _close()
+    _closed = True
+
+
+def _close() -> None:
+    """Put the guard in place."""
     socket.socket = _GuardedSocket  # type: ignore[misc]
     socket.getaddrinfo = _refuse  # type: ignore[assignment]
     socket.gethostbyname = _refuse  # type: ignore[assignment]
     socket.gethostbyname_ex = _refuse  # type: ignore[assignment]
     socket.create_connection = _refuse  # type: ignore[assignment]
-    _closed = True
+
+
+@contextlib.contextmanager
+def network_allowed() -> Iterator[None]:
+    """The one door: for the time of the block, this process may go on the network again
+    (the fetching of a model a person asked for, and nothing else).  The guard is back in
+    place afterwards, whatever happened."""
+    if not _closed:
+        yield
+        return
+    for name in _GUARDED:
+        setattr(socket, name, _real[name])
+    try:
+        yield
+    finally:
+        _close()
 
 
 def no_telemetry() -> bool:

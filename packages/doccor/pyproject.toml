@@ -1,6 +1,6 @@
 [project]
 name = "doccor"
-version = "0.1.0"
+version = "0.2.0"
 description = "The shared core of the document tools optdoc, ocrdoc, semdoc and tagdoc: reproducible configuration documents, the command line's manners, no network, the window's building blocks."
 readme = "README.md"
 requires-python = ">=3.12"

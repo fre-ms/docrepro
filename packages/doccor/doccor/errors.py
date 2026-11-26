@@ -52,6 +52,19 @@ KINDS: dict[str, dict[str, str]] = {
         "de": "Etwas wollte ins Netz, was {tool} nie tut; es wurde angehalten, nichts wurde "
               "gesendet.",
     },
+    "unknown-model": {
+        "en": "{tool} knows no model named {name}; see {tool} models list.",
+        "de": "{tool} kennt kein Modell namens {name}; siehe {tool} models list.",
+    },
+    "model-unreachable": {
+        "en": "The model {name} could not be fetched from its address.",
+        "de": "Das Modell {name} ließ sich von seiner Adresse nicht abrufen.",
+    },
+    "model-checksum": {
+        "en": "What came for the model {name} is not the file {tool} expects; nothing was kept.",
+        "de": "Was für das Modell {name} kam, ist nicht die Datei, die {tool} erwartet; nichts "
+              "wurde behalten.",
+    },
     "usage": {
         "en": "The command line is not valid; see {tool} --help.",
         "de": "Die Kommandozeile ist nicht gültig; siehe {tool} --help.",

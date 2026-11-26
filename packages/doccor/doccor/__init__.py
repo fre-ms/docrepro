@@ -9,8 +9,10 @@
 - :mod:`doccor.cli`: the manners of a tool's command line: exactly one JSON answer,
   usage errors as answers, standard error for the tool's own lines only;
 - :mod:`doccor.offline`: no network, and ONNX Runtime's telemetry switched off;
+- :mod:`doccor.models`: models a step may use, listed with their source, fetched on a
+  person's request and never otherwise;
 - :mod:`doccor.gui`: the window's building blocks (the page view, work off the window's
   thread, words in two languages).
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

@@ -17,10 +17,16 @@ document's metadata). What every one of them needs is here, once:
   happens, usage errors as answers, standard error for the tool's own lines.
 - **No network** (`doccor.offline`): nothing resolves a name or connects once a tool's
   command line has started; ONNX Runtime's telemetry is switched off before it loads.
+- **Models a step may use** (`doccor.models`): a tool lists them in its own code, each with
+  its address, SHA-256, size and licence. One command goes on the network, on a person's
+  request: `<tool> models fetch <name> --to <folder>`, which keeps a file only when it is
+  the one listed. Work never goes out: `run` and `edit` take `--models <folder>` and do
+  without what is not there. What a model found is kept in the configuration document, so
+  that making the result again needs the model no more.
 - **The window's building blocks** (`doccor.gui`, extra `gui`): the page view, work off the
   window's thread, words in two languages.
 
-**Status: pre-alpha (0.1.0).** The code comes from optdoc 0.6.0, with its behaviour.
+**Status: pre-alpha (0.2.0).** The code comes from optdoc 0.6.0, with its behaviour.
 
 ## Install
 
