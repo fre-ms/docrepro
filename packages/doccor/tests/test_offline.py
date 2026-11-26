@@ -22,15 +22,18 @@ for attempt in (lambda: socket.getaddrinfo("example.org", 443),
         said.append("went out")
     except DocError as e:
         said.append(e.kind + ": " + e.message("en"))
-a, b = socket.socketpair()  # local sockets still work
-a.sendall(b"x"); assert b.recv(1) == b"x"
+import sys
+if sys.platform != "win32":  # Windows pairs sockets over loopback, which is refused too
+    a, b = socket.socketpair(socket.AF_UNIX)  # local sockets still work
+    a.sendall(b"x"); assert b.recv(1) == b"x"
 print(json.dumps({"said": said, "attempts": offline.attempts,
                   "closed": offline.network_forbidden()}))
 '''
 
 
 def test_the_door_is_closed() -> None:
-    """Every way out is refused and counted; local sockets work."""
+    """Every way out is refused and counted; Unix sockets still work (Windows has none to
+    pair)."""
     import json
 
     run = subprocess.run([sys.executable, "-c", SCRIPT], capture_output=True, text=True, timeout=60)
