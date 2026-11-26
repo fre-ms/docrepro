@@ -12,6 +12,7 @@ import pytest
 
 from docrepro import steps
 from docrepro.chain import Chain
+from docrepro.errors import DocreproError
 
 
 def test_the_steps_and_their_order() -> None:
@@ -72,3 +73,22 @@ def test_a_step_to_come_joins_by_its_entry_point(tmp_path: Path, report: Path,
     assert Path(answer["annotations"]).name == "befund.annotations.json"
     chain = Path(answer["config"]).read_text(encoding="utf-8")
     assert '"semdoc-annotations"' in chain and '"semdoc 0.0.1"' in chain
+    # semdoc works on ocrdoc's reading: without ocrdoc it cannot be in use
+    with pytest.raises(DocreproError) as caught:
+        Chain.open(report, settings={"reader": "none"}, without=("ocrdoc",))
+    assert (caught.value.kind, caught.value.details) == (
+        "step-needs", {"step": "semdoc", "needs": "ocrdoc"})
+    fewer = Chain.open(report, without=("ocrdoc", "semdoc")).run(tmp_path / "fewer")
+    assert [(s["tool"], s["used"]) for s in fewer["steps"]] == [
+        ("optdoc", True), ("ocrdoc", False), ("semdoc", False), ("tagdoc", True)]
+
+
+def test_a_persons_decisions_in_a_configuration_document() -> None:
+    """Whether a person decided something in a step, read from its configuration
+    document, whatever the step."""
+    assert not steps.decided_by_person(None)
+    assert not steps.decided_by_person({"pages": [{"plan": {}, "by": "auto"}]})
+    assert steps.decided_by_person({"pages": [{"by": "auto"}, {"by": "person"}]})
+    assert steps.decided_by_person({"fields": {"title": {"value": "x", "by": "person"}}})
+    assert steps.decided_by_person({"pages": [{"correction": "Text", "layout": {"by": "auto"}}]})
+    assert not steps.decided_by_person({"pages": [{"correction": None}]})

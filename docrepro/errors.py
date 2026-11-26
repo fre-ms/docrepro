@@ -17,6 +17,15 @@ _OWN: dict[str, dict[str, str]] = {
         "en": "The step {step} is not installed; this document was made with it.",
         "de": "Der Schritt {step} ist nicht installiert; dieses Dokument wurde damit gemacht.",
     },
+    "step-needs": {
+        "en": "The step {step} needs the step {needs}, which is switched off or not installed.",
+        "de": "Der Schritt {step} braucht den Schritt {needs}, der ausgeschaltet oder nicht "
+              "installiert ist.",
+    },
+    "no-steps": {
+        "en": "No step is switched on: there is nothing to do.",
+        "de": "Kein Schritt ist eingeschaltet: es gibt nichts zu tun.",
+    },
 }
 
 _core.register(_OWN)

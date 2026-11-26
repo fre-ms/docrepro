@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.3.0 (2026-11-27)
+
+Every step is optional. Interface 2; `docrepro-chain` version 2.
+
+- **`--without <step>`** for `run` and `edit` leaves a step out, as often as needed. A step that
+  is not in use hands on what it got, untouched: ocrdoc reads the original where optdoc is off,
+  tagdoc describes optdoc's PDF where ocrdoc is. OCR without preparation, preparation without
+  OCR, a description alone are chains like any other, and the chain document makes each again,
+  byte for byte. A photo or an image becomes a PDF through optdoc alone: without it ocrdoc
+  answers `not-pdf` (`--no-clean-up` leaves the pages as they came instead).
+- **The answer's `steps`** name every installed step and say whether it was in use (`used`).
+- **The chain document is version 2**: every step says `used`. A step that is off may keep its
+  configuration document, so that what a person decided in it is back when it is switched on
+  again. A step the document does not name is not in use (it started fresh before: a step
+  installed later then changed what an old document made). The entry of a step that is not
+  installed and was not in use is carried along. Version 1 is no longer read.
+- **The window** has the steps on its left, each with a switch and what became of it: off; in
+  use, as suggested; in use, changed by hand; in use, to be made anew (a step before it changed).
+  A filled circle marks a step in use and an empty one a step that is off, there and on the
+  tabs; the tabs of a step that is off are closed. For a photo optdoc stays on. Where optdoc is
+  switched off, ocrdoc reads the original and starts anew, and the status line says so.
+- **Steps** may name the steps they cannot do without (`needs`: semdoc needs ocrdoc); a chain
+  with a step in use whose need is not is refused (`step-needs`), one with no step in use too
+  (`no-steps`).
+
 ## 0.2.0 (2026-11-26)
 
 Models as an optional download, through every step. With optdoc 0.8.0, ocrdoc 0.2.0 and doccor

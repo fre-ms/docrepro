@@ -1,4 +1,5 @@
-"""The command line: ``docrepro about``, ``docrepro run``, ``docrepro edit`` (the window),
+"""The command line: ``docrepro about``, ``docrepro run``, ``docrepro edit`` (the window;
+both through the steps in use: all that are installed but those left out with ``--without``),
 ``docrepro models`` (the models of every step: listed, and fetched on request), and every
 step's own command line as ``docrepro <tool> …`` (``docrepro optdoc run …``, ``docrepro ocrdoc
 edit …``), so that one program holds them all.
@@ -28,7 +29,7 @@ from docrepro.chain import SUFFIX, Chain, load_chain
 from docrepro.errors import DocreproError
 from docrepro.steps import STEPS, adapter, catalogue
 
-INTERFACE = 1  # the version of docs/interface.md the answers follow
+INTERFACE = 2  # the version of docs/interface.md the answers follow
 TOOL = "docrepro"
 
 # the settings of the steps, by option: the name a step's options know it by
@@ -92,14 +93,15 @@ def _settings(args: argparse.Namespace) -> dict[str, Any]:
 
 def _chain(args: argparse.Namespace) -> Chain:
     """The chain on the original: from its chain document (``--config``, a JSON file or
-    a PDF docrepro wrote), or fresh with the settings given.  Both at once is a "usage"."""
+    a PDF docrepro wrote), or fresh with the settings given and every installed step in
+    use but those left out (``--without``).  Both at once is a "usage"."""
     settings = _settings(args)
     if args.config is not None:
-        if settings:
+        if settings or args.without:  # the chain document decides both
             raise DocreproError("usage")
         chain = Chain.open(args.file, chain=load_chain(args.config))
     else:
-        chain = Chain.open(args.file, settings=settings)
+        chain = Chain.open(args.file, settings=settings, without=args.without or ())
     chain.models = args.models
     return chain
 
@@ -121,7 +123,7 @@ def _edit(args: argparse.Namespace) -> dict[str, Any]:
         raise DocreproError("no-gui")
     from docrepro.gui.app import edit
 
-    chain = _chain(args)
+    chain = _chain(args)  # the window sets which steps are in use (chain.used)
     outcome, configs = edit(chain, _out(args), language=args.language,
                             self_test=args.self_test)
     if outcome == "cancelled":
@@ -141,6 +143,10 @@ def _document_options(pr: argparse.ArgumentParser) -> None:
     pr.add_argument("--config", type=Path,
                     help="chain document to start from: <name>.docrepro.json, or a PDF "
                          "docrepro wrote")
+    pr.add_argument("--without", action="append", choices=[step.name for step in STEPS],
+                    metavar="STEP",
+                    help="leave a step out (optdoc, ocrdoc, tagdoc …); it hands on what it "
+                         "got, untouched. May be given more than once")
     pr.add_argument("--paper", help="optdoc: paper an image is placed on (a4, a5, a3, letter, "
                                     "legal, image)")
     kind = pr.add_mutually_exclusive_group()

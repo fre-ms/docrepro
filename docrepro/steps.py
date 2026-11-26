@@ -22,8 +22,15 @@ does; semdoc is to)::
     semdoc = "semdoc.docrepro:ADAPTER"
 
 so that installing it is all it takes to put it into the chain and the window.  A step
-that is not installed is left out; a chain document that names one is refused
+that is not installed is left out; a chain document that used one is refused
 ("step-missing"), since without it the result cannot be made again.
+
+**Every step is optional.**  A document goes through the steps that are in use for it and
+past the others: a step that is switched off hands on what it got, untouched.  OCR without
+preparation, preparation without OCR, a description alone: each is a chain.  What a step
+cannot do without another it says itself (``needs``: semdoc needs ocrdoc's reading), and a
+step that gets what it cannot take says so with its own error (ocrdoc reads PDFs: a photo
+needs optdoc to become one).
 
 **Models.**  A step may do better with a model, an optional download (:mod:`doccor.models`).
 An adapter says so with two members docrepro looks for and does not demand: ``catalogue``,
@@ -51,7 +58,8 @@ Progress = Callable[[int, int], None]  # page (from 1) about to be done, and how
 @dataclass(frozen=True)
 class Step:
     """One step of the chain: its tool, its place, what it takes and gives, what it does
-    (in English and German), and whether it is still to come."""
+    (in English and German), whether it is still to come, and the steps it cannot do
+    without (``needs``: they must be in use where it is)."""
 
     name: str
     order: int
@@ -59,6 +67,7 @@ class Step:
     gives: str
     does: dict[str, str]
     planned: bool = False
+    needs: tuple[str, ...] = ()
 
 
 STEPS: tuple[Step, ...] = (
@@ -71,7 +80,7 @@ STEPS: tuple[Step, ...] = (
     Step("semdoc", 30, "reading", "annotations",
          {"en": "understands the text: medical terms and identifying information",
           "de": "versteht den Text: medizinische Begriffe und identifizierende Angaben"},
-         planned=True),
+         planned=True, needs=("ocrdoc",)),
     Step("tagdoc", 40, "pdf", "pdf with metadata (medRDS 7), or a sidecar",
          {"en": "describes the document: title, kind, date, authors, the people it names",
           "de": "beschreibt das Dokument: Titel, Art, Datum, Autoren, die Personen darin"}),
@@ -106,6 +115,28 @@ class Adapter(Protocol):
         """Release the project."""
 
 
+def by_person(made: Adapter, project: Any) -> bool:
+    """True when a person decided something in the step's project: as the adapter says
+    (``by_person(project)``, where it has that), else as the step's configuration
+    document shows it (an entry decided ``"by": "person"``, a correction)."""
+    own = getattr(made, "by_person", None)
+    if own is not None:
+        return bool(own(project))
+    return decided_by_person(made.config(project))
+
+
+def decided_by_person(config: Any) -> bool:
+    """True when a configuration document holds a person's decision: somewhere in it an
+    entry ``"by": "person"``, or a correction."""
+    if isinstance(config, dict):
+        if config.get("by") == "person" or config.get("correction") is not None:
+            return True
+        return any(decided_by_person(value) for value in config.values())
+    if isinstance(config, list):
+        return any(decided_by_person(value) for value in config)
+    return False
+
+
 def catalogue(made: Adapter) -> tuple[Model, ...]:
     """The models a step can use, as its adapter lists them; none where it lists none."""
     return tuple(getattr(made, "catalogue", ()))
@@ -134,6 +165,9 @@ class OptdocAdapter:
 
     def use_models(self, project: Any, folder: Path | None) -> None:
         project.models = folder
+
+    def by_person(self, project: Any) -> bool:
+        return bool(project.decided_by_person)
 
     def open(self, source: Path, config: dict[str, Any] | None,
              settings: dict[str, Any], scratch: Path) -> Any:
@@ -176,6 +210,10 @@ class OcrdocAdapter:
 
     def use_models(self, project: Any, folder: Path | None) -> None:
         project.models = folder
+
+    def by_person(self, project: Any) -> bool:
+        return bool(project.corrected) or any(
+            page.filters_by_person or page.regions_by_person for page in project.pages)
 
     def open(self, source: Path, config: dict[str, Any] | None,
              settings: dict[str, Any], scratch: Path) -> Any:

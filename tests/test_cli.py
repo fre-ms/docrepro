@@ -72,6 +72,8 @@ def test_failures_without_paths(tmp_path: Path, report: Path,
     cases = {
         "missing": ["run", str(folder / "fehlt.jpg")],
         "usage": ["run", str(good), "--config", str(chain), "--reader", "none"],
+        "no-steps": ["run", str(good), "--without", "optdoc", "--without", "ocrdoc",
+                     "--without", "tagdoc"],
         "bad-config": ["run", str(good), "--config", str(chain)],
         "same-as-source": ["run", str(good), "--out", str(folder)],
     }
@@ -106,6 +108,16 @@ def test_run_on_the_command_line(tmp_path: Path, report: Path) -> None:
         "scan.docrepro.json", "scan.md", "scan.pdf", "scan.reading.json"]
     for name, folder in elsewhere.items():
         assert not any(folder.rglob("*")), name
+    # steps left out: the answer says which were in use; beside --config that is a usage
+    only = _run(["run", str(original), "--out", str(tmp_path / "only"), "--without", "optdoc",
+                 "--without", "tagdoc", "--progress"], env=env)
+    assert only.returncode == 0, only.stdout
+    assert [(s["tool"], s["used"]) for s in json.loads(only.stdout)["steps"]] == [
+        ("optdoc", False), ("ocrdoc", True), ("tagdoc", False)]
+    assert {json.loads(z)["step"] for z in only.stderr.splitlines()} == {"ocrdoc"}
+    refused = _run(["run", str(original), "--out", str(tmp_path / "x"), "--config",
+                    answer["config"], "--without", "tagdoc"], env=env)
+    assert refused.returncode == 2 and json.loads(refused.stdout)["error"] == "usage"
     if importlib.util.find_spec("PySide6") is None:
         return
     edit = _run(["edit", str(original), "--out", str(tmp_path / "e"), "--self-test",

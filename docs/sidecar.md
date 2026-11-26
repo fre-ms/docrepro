@@ -40,6 +40,7 @@ and then tries the program out the way an application uses it:
   the same PDF, nothing left behind;
 - the steps one by one through their own command lines;
 - a failure, which must answer with its kind;
+- `run --without ocrdoc --without tagdoc`: prepared only, the PDF and the chain document;
 - `models list`: the models the steps can use, each with its step;
 - on macOS the whole way and the window once more with the network closed by the system
   (`sandbox-exec`), and there `models fetch`, which must answer `model-unreachable` and keep
@@ -104,6 +105,11 @@ runtime (`bundle.macOS.hardenedRuntime`) and without docrepro's entitlements. Th
 not start: the system refuses the Python library it unpacks ("different Team IDs"). Either bundle
 without the hardened runtime, or sign the program again after Tauri, with the hardened runtime and
 `packaging/entitlements.plist`.
+
+**Steps left out.** An application need not use every step: `--without <step>` leaves one out for a
+document (a records app that only wants the text of a PDF it already holds gives `--without optdoc`),
+and in the window the person switches steps on and off. The answer's `steps` say which were in use;
+the filed PDF carries the chain document, which says so too, and makes the same files again.
 
 **Models.** The program carries no optional model, and nothing fetches one unasked. An application
 that wants its users to have one (so far `page-orientation`, 6.8 MB, with which a page scanned on

@@ -1,22 +1,25 @@
 # docrepro's command line as an interface
 
-**Interface 1**, since docrepro 0.1.0 (this description: docrepro 0.2.0). This is what a program may rely on
-when it calls docrepro, a records app above all, which ships one program instead of one per step.
+**Interface 2**, since docrepro 0.3.0. This is what a program may rely on when it calls docrepro, a records
+app above all, which ships one program instead of one per step.
 
 Every answer carries `interface`; it goes up when something a caller relies on changes in a way that breaks
 it. Within one interface, new fields, options and kinds of error may come; a caller ignores what it does not
 know. The steps' own command lines (`docrepro optdoc …`, `docrepro ocrdoc …`) keep their own interfaces
 (optdoc's 3, ocrdoc's 1), described in their repositories.
 
-**Added within interface 1 (docrepro 0.2.0):** models as an optional download: the commands `models list`
-and `models fetch`, the option `--models`, and `models` in the answer of `about`.
+**From interface 1:** every step is optional. `--without <step>` leaves a step out; the answer's `steps`
+name every installed step and say whether it was in use (`used`); the chain document is version 2 (each
+step says `used`; version 1 is no longer read: `bad-config`, reason `format`); a step the chain document
+does not name is not in use (it started fresh before); new kinds of error `step-needs` and `no-steps`.
+Models as an optional download came within interface 1 (docrepro 0.2.0) and stay as they are.
 
 ## Calling
 
 ```
 docrepro about
-docrepro run  <original> --out <folder> [--config <chain>] [settings] [--progress]
-docrepro edit <original> --out <folder> [--config <chain>] [settings] [--language de|en]
+docrepro run  <original> --out <folder> [--config <chain>] [--without <step>]… [settings] [--progress]
+docrepro edit <original> --out <folder> [--config <chain>] [--without <step>]… [settings] [--language de|en]
 docrepro models list [--models <folder>]
 docrepro models fetch <name> --to <folder> [--progress]
 docrepro <step> …                      the step's own command line (optdoc, ocrdoc; semdoc, tagdoc once installed)
@@ -31,13 +34,13 @@ to docrepro. docrepro never goes on the network while it works; the one command 
 
 | field | example | meaning |
 |---|---|---|
-| `interface` | `1` | the version of this description |
-| `made_with` | `"docrepro 0.2.0"` | the program and its version |
+| `interface` | `2` | the version of this description |
+| `made_with` | `"docrepro 0.3.0"` | the program and its version |
 
 ## `about`
 
 ```json
-{"interface": 1, "made_with": "docrepro 0.2.0", "version": "0.2.0", "window": true,
+{"interface": 2, "made_with": "docrepro 0.3.0", "version": "0.3.0", "window": true,
  "steps": [{"tool": "optdoc", "order": 10, "takes": "original", "gives": "pdf",
             "does": {"en": "…", "de": "…"}, "planned": false, "installed": true, "version": "0.8.0"},
            {"tool": "ocrdoc", "order": 20, "…": "…"},
@@ -52,10 +55,10 @@ to docrepro. docrepro never goes on the network while it works; the one command 
 ## `run`: the whole way
 
 `<original>` is a photo, an image or a PDF; docrepro never changes it and always starts from it. It takes it
-through every installed step in their order; each step's input is the result of the one before. Into
-`<folder>` (made when missing; default `<original>.docrepro` beside it) it writes the last step's files under
-the original's stem, and **nothing anywhere else** (what the steps make on the way goes into the hidden
-folder `.docrepro-work` inside `<folder>` and is removed at once):
+through the steps in use, in their order; each step's input is the result of the one before. Into
+`<folder>` (made when missing; default `<original>.docrepro` beside it) it writes the files of the last step
+in use under the original's stem, and **nothing anywhere else** (what the steps make on the way goes into
+the hidden folder `.docrepro-work` inside `<folder>` and is removed at once). With every step in use:
 
 | file | what it is |
 |---|---|
@@ -66,6 +69,22 @@ folder `.docrepro-work` inside `<folder>` and is removed at once):
 
 tagdoc adds `<stem>.pdf.xmp` where the description goes into a sidecar; a step to come adds its own files
 (semdoc its annotations).
+
+**Every step is optional.** In use are all installed steps but those left out: `--without optdoc`,
+`--without ocrdoc`, `--without tagdoc`, as often as needed. A step that is not in use hands on what it got,
+untouched, and writes nothing:
+
+| left out | what happens |
+|---|---|
+| optdoc | ocrdoc reads the original as it came. The original must then be a PDF: a photo or an image becomes one through optdoc alone, and ocrdoc answers `not-pdf` for it. To have a photo read without preparing it, leave optdoc in and give `--no-clean-up` (the pages then stay as they came). |
+| ocrdoc | No text layer, no reading, no Markdown; tagdoc describes optdoc's PDF (and finds less to suggest where the pages have no text). |
+| tagdoc | The PDF has no description; it is ocrdoc's. |
+| all | The error `no-steps`. |
+
+A step that cannot do without another says so (`step-needs`: semdoc, once there, needs ocrdoc's reading).
+The PDF carries the configuration documents of the steps that ran, and the chain document says for every
+step whether it was in use. With `--config` the chain document decides which steps are in use; `--without`
+beside it is a `usage` error.
 
 **Settings** of the steps, each taken by the step that knows it: `--paper`, `--photo` or `--scan`,
 `--no-clean-up`, `--colour-pages jpeg|png` (optdoc); `--reader`, `--languages`, `--no-cells`, `--no-areas`
@@ -81,22 +100,37 @@ document does not name it, and it may stand beside `--config`.
 The answer:
 
 ```json
-{"interface": 1, "made_with": "docrepro 0.2.0",
+{"interface": 2, "made_with": "docrepro 0.3.0",
  "pdf": "<folder>/<stem>.pdf", "config": "<folder>/<stem>.docrepro.json",
  "reading": "<folder>/<stem>.reading.json", "markdown": "<folder>/<stem>.md",
  "pages": 2,
- "steps": [{"tool": "optdoc", "made_with": "optdoc 0.8.0", "dropped": []},
-           {"tool": "ocrdoc", "made_with": "ocrdoc 0.2.0", "dropped": [2]}],
- "not_installed": ["semdoc", "tagdoc"]}
+ "steps": [{"tool": "optdoc", "used": true, "made_with": "optdoc 0.8.0", "dropped": []},
+           {"tool": "ocrdoc", "used": true, "made_with": "ocrdoc 0.2.0", "dropped": [2]},
+           {"tool": "tagdoc", "used": false}],
+ "not_installed": ["semdoc"]}
 ```
 
-`dropped` names, per step, the pages (from 1) whose decisions a person had made in that step and that went,
-because an earlier step moved the page (turned, unwarped or straightened it otherwise).
+`steps` names every installed step in the chain's order and says whether it was in use (`used`). For a
+step in use, `dropped` names the pages (from 1) whose decisions a person had made in that step and that
+went, because an earlier step moved the page (turned, unwarped or straightened it otherwise). `reading` and
+`markdown` are there where ocrdoc was in use.
 
 ## `edit`: one window for the whole way
 
-Opens a window with a tab for every installed step, in their order: optdoc's preparation (1), ocrdoc's
-filters for OCR (2), areas (3) and text (4), tagdoc's description (5); a step to come brings its tab. When the
+Opens a window with a tab for every panel of the installed steps, in their order: optdoc's preparation (1),
+ocrdoc's filters for OCR (2), areas (3) and text (4), tagdoc's description (5); a step to come brings its tab.
+
+On the left stand the steps, each with a switch and what became of it: **off**; **in use, as suggested**;
+**in use, changed by hand** (a person decided something in it); **in use, to be made anew** (a step before
+it changed since). A filled circle marks a step in use, an empty one a step that is off, in the list and on
+its tabs; the tabs of a step that is off are closed. The window starts with the steps the chain document
+or `--without` say. For a photo or an image optdoc stays on (it makes the PDF; a page can be left as it came
+in its tab). A step that needs one which is off is off as well. What a person decided in a step that is
+switched off is kept, in the chain document too, and is back when the step is switched on again; one
+case apart: where optdoc is switched off, ocrdoc reads the original, a different file, and starts anew
+(the status line says so).
+
+When the
 person turns to tab 5, ocrdoc writes its result as it stands (reading the pages not read yet) and tagdoc
 describes it; a person's fields stay whatever changed before. When the person turns from
 optdoc's tab to a later one after changing a page, optdoc's PDF is made anew and ocrdoc keeps what the person
@@ -116,7 +150,7 @@ No step needs a model; a step lists one only after it did better, measured, than
 docrepro lists the models of every installed step, each with its step:
 
 ```json
-{"interface": 1, "made_with": "docrepro 0.2.0",
+{"interface": 2, "made_with": "docrepro 0.3.0",
  "models": [{"step": "optdoc", "name": "page-orientation", "file": "pp-lcnet-x1-0-doc-ori.onnx",
              "url": "https://huggingface.co/PaddlePaddle/PP-LCNet_x1_0_doc_ori_onnx/resolve/…/inference.onnx",
              "sha256": "af9a0a4f…", "bytes": 6788069, "licence": "Apache-2.0",
@@ -153,21 +187,28 @@ again without any model**.
 ocrdoc lists none yet: the layout model measured so far did worse than its rules on the invented letters of
 its bench (ocrdoc's `docs/interface.md`).
 
-## The chain document: `docrepro-chain`, version 1
+## The chain document: `docrepro-chain`, version 2
 
 ```json
-{"format": "docrepro-chain", "version": 1, "made_with": "docrepro 0.2.0",
+{"format": "docrepro-chain", "version": 2, "made_with": "docrepro 0.3.0",
  "original": {"sha256": "…", "bytes": 245678, "suffix": ".jpg"},
- "steps": [{"tool": "optdoc", "made_with": "optdoc 0.8.0", "config": {"format": "optdoc-config", "…": "…"}},
-           {"tool": "ocrdoc", "made_with": "ocrdoc 0.2.0", "config": {"format": "ocrdoc-config", "…": "…"}}]}
+ "steps": [{"tool": "optdoc", "used": true, "made_with": "optdoc 0.8.0",
+            "config": {"format": "optdoc-config", "…": "…"}},
+           {"tool": "ocrdoc", "used": true, "made_with": "ocrdoc 0.2.0",
+            "config": {"format": "ocrdoc-config", "…": "…"}},
+           {"tool": "tagdoc", "used": false, "config": {"format": "tagdoc-config", "…": "…"}}]}
 ```
 
-The original by its SHA-256, and every step's configuration document as the step wrote it; no paths, no
-times. **The original and the chain document give every file again, byte for byte**, on the same versions of
-the steps; `--config` takes the chain document or the PDF docrepro wrote. A chain document of another
-original is refused (`config-mismatch`), one that names a step which is not installed too (`step-missing`):
-without it, the result cannot be made again. A step installed later than the chain document was written
-starts fresh.
+The original by its SHA-256, and for every step whether it was in use (`used`) and its configuration
+document as the step wrote it; no paths, no times. A step in use has `made_with` and `config`. A step that
+is off may keep a `config`: what a person decided in it before it was switched off, kept for when it is
+switched on again (it takes no part in the result). **The original and the chain document give every file
+again, byte for byte**, on the same versions of the steps; `--config` takes the chain document or the PDF
+docrepro wrote. A chain document of another original is refused (`config-mismatch`), one that used a step
+which is not installed too (`step-missing`): without it, the result cannot be made again. A step the
+document does not name is not in use, so that a step installed later changes nothing of what the document
+makes; in the window a person can switch it on. The entry of a step that is not installed and was not in
+use is carried along as it is. Version 1 (docrepro 0.1 and 0.2) is no longer read.
 
 ## Failures
 
@@ -175,7 +216,9 @@ As every tool of docrepro: `error`, `details`, `message` in English and German. 
 
 | `error` | when | `details` |
 |---|---|---|
-| `step-missing` | the chain document names a step that is not installed, or `docrepro <step>` for one | `step` |
+| `step-missing` | the chain document used a step that is not installed, or `docrepro <step>` for one | `step` |
+| `step-needs` | a step in use needs one that is switched off or not installed | `step`, `needs` |
+| `no-steps` | no step is in use: nothing to do | |
 
 and the common ones (`missing`, `bad-config`, `config-mismatch`, `same-as-source`, `unwritable`, `cancelled`,
 `no-gui`, `network`, `usage`, `internal`, and of `models fetch`: `unknown-model`, `model-unreachable`,
@@ -190,7 +233,8 @@ step's project on its input (fresh with the settings, or as its configuration do
 configuration document, makes and writes the result (a PDF for the next step, and its own files), and names
 the pages whose decisions went (`docrepro.steps.Adapter`), and may bring a panel for the window
 (`panel(project, words)`), the models its step can use (`catalogue`) and a way to hand its project the
-folder of models (`use_models(project, folder)`). tagdoc (order 40) joins so; semdoc (order 30, takes the reading, gives
+folder of models (`use_models(project, folder)`). A step says in docrepro's list of steps which others it
+cannot do without (`needs`). tagdoc (order 40) joins so; semdoc (order 30, takes the reading, gives
 annotations, format `semdoc-annotations`) has its place already.
 
 ## Licence

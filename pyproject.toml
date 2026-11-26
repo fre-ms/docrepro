@@ -1,6 +1,6 @@
 [project]
 name = "docrepro"
-version = "0.2.0"
+version = "0.3.0"
 description = "Reproduces photographed and scanned documents as digital documents: optdoc, ocrdoc and tagdoc (semdoc to come) in one chain, one window and one program, every step reproducible."
 readme = "README.md"
 requires-python = ">=3.12"

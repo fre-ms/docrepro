@@ -14,7 +14,8 @@ there) and each step's own ``about``; ``run`` on an invented photographed labora
 report with the temporary, home and cache folders pointed at empty folders, which must
 stay empty; ``run --config`` with the chain document it wrote (the same files, byte for
 byte); ``edit --self-test`` (the window without a person, off screen); the steps one by
-one through their own command lines; a failure, which must answer with its kind; the
+one through their own command lines; a failure, which must answer with its kind; ``run``
+with steps left out (prepared only); the
 models the steps list (``models list``); on macOS once more with the network closed by the
 system (``sandbox-exec``), where that is allowed, and there ``models fetch``, which must
 answer that it could not reach the address and keep nothing.  With ``--models <folder>``
@@ -203,6 +204,15 @@ def check(program: Path, models: Path | None = None) -> dict[str, object]:
         status, answer, _, _ = _run([str(program), "run", str(work / "fehlt.jpg")])
         assert status == 2 and answer["error"] == "missing", answer
         checks["failure"] = "answers with its kind"
+        status, answer, _, timings["run --without"] = _run(
+            [str(program), "run", str(photo), "--out", str(work / "prepared"), "--without",
+             "ocrdoc", "--without", "tagdoc"], env)
+        assert status == 0 and [(s["tool"], s["used"]) for s in answer["steps"]] == [
+            ("optdoc", True), ("ocrdoc", False), ("tagdoc", False)], answer
+        assert sorted(p.name for p in (work / "prepared").iterdir()) == [
+            "foto.docrepro.json", "foto.pdf"], list((work / "prepared").iterdir())
+        assert not _left(work, empty), _left(work, empty)
+        checks["steps left out"] = "prepared only: the PDF and the chain document, nothing else"
         status, answer, _, _ = _run([str(program), "models", "list", "--models",
                                      str(work / "none")], env)
         listed = {m["name"]: m for m in answer.get("models", [])}

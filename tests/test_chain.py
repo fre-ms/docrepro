@@ -16,7 +16,7 @@ from ocrdoc import ocr as ocrlib
 
 from docrepro.chain import EMBEDDED, Chain, load_chain
 from docrepro.errors import DocreproError
-from tests.synthetic import scan
+from tests.synthetic import photo_of, scan
 
 needs_engine = pytest.mark.skipif(not ocrlib.available_backends(), reason="no OCR engine")
 
@@ -41,13 +41,14 @@ def test_the_whole_way_again_from_the_chain_document(tmp_path: Path, report: Pat
         monkeypatch.setattr(tempfile, name, refused)
     first = Chain.open(original).run(tmp_path / "a")
     assert [s["tool"] for s in first["steps"]] == ["optdoc", "ocrdoc", "tagdoc"]
-    assert all(s["dropped"] == [] for s in first["steps"])
+    assert all(s["used"] and s["dropped"] == [] for s in first["steps"])
     assert first["not_installed"] == ["semdoc"]
     assert sorted(p.name for p in (tmp_path / "a").iterdir()) == [
         "scan.docrepro.json", "scan.md", "scan.pdf", "scan.reading.json"]
     chain = json.loads(Path(first["config"]).read_text(encoding="utf-8"))
-    assert chain["format"] == "docrepro-chain" and chain["version"] == 1
+    assert chain["format"] == "docrepro-chain" and chain["version"] == 2
     assert [s["tool"] for s in chain["steps"]] == ["optdoc", "ocrdoc", "tagdoc"]
+    assert all(s["used"] is True for s in chain["steps"])
     assert chain["steps"][0]["config"]["pages"][0]["plan"]["straighten"] is True
     with pymupdf.open(first["pdf"]) as doc:
         assert sorted(doc.embfile_names()) == [EMBEDDED, "ocrdoc.json", "optdoc.json",
@@ -118,13 +119,15 @@ def test_refused_chain_documents(tmp_path: Path, report: Path) -> None:
     with pytest.raises(DocreproError) as caught:
         Chain.open(other, chain=document)
     assert caught.value.kind == "config-mismatch"
-    semdoc = {**document, "steps": [{"tool": "semdoc", "made_with": "semdoc 0.1.0",
-                                     "config": {}}]}
+    semdoc = {**document, "steps": [{"tool": "semdoc", "used": True,
+                                     "made_with": "semdoc 0.1.0", "config": {}}]}
     with pytest.raises(DocreproError) as caught:
         Chain.open(report, chain=semdoc)
     assert (caught.value.kind, caught.value.details) == ("step-missing", {"step": "semdoc"})
     for broken in ({**document, "steps": "alle"}, {**document, "original": None},
-                   {**document, "steps": [{"tool": "optdoc"}]}):
+                   {**document, "steps": [{"tool": "optdoc"}]},
+                   {**document, "steps": [{"tool": "optdoc", "used": True}]},
+                   {**document, "steps": [{"tool": "optdoc", "used": "ja", "config": {}}]}):
         with pytest.raises(DocreproError) as caught:
             Chain.open(report, chain=broken)
         assert caught.value.kind == "bad-config"
@@ -132,7 +135,90 @@ def test_refused_chain_documents(tmp_path: Path, report: Path) -> None:
         Chain.open(report).run(report.parent)
     assert caught.value.kind == "same-as-source"
     path = tmp_path / "x.docrepro.json"
-    path.write_text(json.dumps({**document, "version": 9}), encoding="utf-8")
+    for version in (9, 1):  # one to come, and the one before: neither is read
+        path.write_text(json.dumps({**document, "version": version}), encoding="utf-8")
+        with pytest.raises(DocreproError) as caught:
+            load_chain(path)
+        assert caught.value.details == {"reason": "format"}
+
+
+def _embedded(pdf: str) -> list[str]:
+    with pymupdf.open(pdf) as doc:
+        return sorted(doc.embfile_names())
+
+
+@needs_engine
+def test_every_step_is_optional(tmp_path: Path, report: Path) -> None:
+    """OCR without preparation, preparation without OCR, a description alone: a step that
+    is off hands on what it got, the answer and the chain document say which steps were
+    in use, and the chain document makes the same files again."""
+    original = scan(report, tmp_path / "scan.pdf")
+    read = Chain.open(original, without=("optdoc",)).run(tmp_path / "read")
+    assert [(s["tool"], s["used"]) for s in read["steps"]] == [
+        ("optdoc", False), ("ocrdoc", True), ("tagdoc", True)]
+    assert "dropped" not in read["steps"][0] and "made_with" not in read["steps"][0]
+    assert _embedded(read["pdf"]) == [EMBEDDED, "ocrdoc.json", "tagdoc.json"]
+    with pymupdf.open(read["pdf"]) as doc:
+        assert "Ramipril" in doc[0].get_text()  # ocrdoc read the original as it came
+    chain = load_chain(read["config"])
+    assert chain["steps"][0] == {"tool": "optdoc", "used": False}
+    again = Chain.open(original, chain=chain).run(tmp_path / "read-again")
+    assert _files(again) == _files(read)
+
+    prepared = Chain.open(original, without=("ocrdoc", "tagdoc")).run(tmp_path / "prepared")
+    assert sorted(p.name for p in (tmp_path / "prepared").iterdir()) == [
+        "scan.docrepro.json", "scan.pdf"]
+    assert _embedded(prepared["pdf"]) == [EMBEDDED, "optdoc.json"]
+    assert "reading" not in prepared and "markdown" not in prepared
+    with pymupdf.open(prepared["pdf"]) as doc:
+        assert doc[0].get_text().strip() == ""  # prepared, not read
+
+    described = Chain.open(report, without=("optdoc", "ocrdoc")).run(tmp_path / "described")
+    assert _embedded(described["pdf"]) == [EMBEDDED, "tagdoc.json"]
+    with pymupdf.open(described["pdf"]) as doc:
+        assert "<dc:type>" in doc.get_xml_metadata() and "Ramipril" in doc[0].get_text()
+    for key in ("pdf", "config"):
+        once_more = Chain.open(report, chain=load_chain(described["config"])).run(
+            tmp_path / "described-again")
+        assert Path(once_more[key]).read_bytes() == Path(described[key]).read_bytes(), key
+
     with pytest.raises(DocreproError) as caught:
-        load_chain(path)
-    assert caught.value.details == {"reason": "format"}
+        Chain.open(original, without=("optdoc", "ocrdoc", "tagdoc"))
+    assert caught.value.kind == "no-steps"
+
+
+def test_a_photo_needs_optdoc_to_become_a_pdf(tmp_path: Path, report: Path) -> None:
+    """Where optdoc is off, ocrdoc gets the original; a photo it cannot take, and says so
+    itself."""
+    from ocrdoc.errors import OcrdocError
+
+    photo = photo_of(report, tmp_path / "foto.jpg")
+    with pytest.raises(OcrdocError) as caught:
+        Chain.open(photo, without=("optdoc",), settings={"reader": "none"}).run(tmp_path / "out")
+    assert caught.value.kind == "not-pdf"
+    assert not (tmp_path / "out").exists()  # nothing written, nothing left
+
+
+def test_a_step_switched_off_keeps_what_it_held(tmp_path: Path, report: Path) -> None:
+    """A chain document may say that a step is off and still hold its configuration
+    document: the step is passed by, and its document goes on into the next chain
+    document, for when the step is switched on again.  So does the entry of a step that
+    is not installed and was not in use."""
+    first = Chain.open(report, settings={"reader": "none"}).run(tmp_path / "a")
+    chain = load_chain(first["config"])
+    held = chain["steps"][2]["config"]
+    chain["steps"][2] = {"tool": "tagdoc", "used": False, "config": held}
+    chain["steps"].append({"tool": "semdoc", "used": False, "config": {"kept": True}})
+    second = Chain.open(report, chain=chain).run(tmp_path / "b")
+    assert [(s["tool"], s["used"]) for s in second["steps"]] == [
+        ("optdoc", True), ("ocrdoc", True), ("tagdoc", False)]
+    assert _embedded(second["pdf"]) == [EMBEDDED, "ocrdoc.json", "optdoc.json"]
+    written = load_chain(second["config"])
+    assert [(s["tool"], s["used"]) for s in written["steps"]] == [
+        ("optdoc", True), ("ocrdoc", True), ("semdoc", False), ("tagdoc", False)]
+    assert written["steps"][3] == {"tool": "tagdoc", "used": False, "config": held}
+    assert written["steps"][2] == {"tool": "semdoc", "used": False, "config": {"kept": True}}
+    back = {**written, "steps": [*written["steps"][:2],  # without the entry carried along
+                                 {"tool": "tagdoc", "used": True, "config": held}]}
+    third = Chain.open(report, chain=back).run(tmp_path / "c")
+    assert Path(third["pdf"]).read_bytes() == Path(first["pdf"]).read_bytes()

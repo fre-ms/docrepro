@@ -13,6 +13,28 @@ WORDS: dict[str, tuple[str, str]] = {  # key: (English, German)
     "tab_regions_3": ("3 Areas", "3 Bereiche"),
     "tab_text_4": ("4 Check the text", "4 Text prüfen"),
     "tab_tagdoc": ("Describe", "Beschreiben"),
+    # the steps on the left: which are in use, and what became of each
+    "chain_steps": ("Steps in use", "Schritte in Gebrauch"),
+    "chain_optdoc": ("prepare", "aufbereiten"),
+    "chain_ocrdoc": ("recognise", "erkennen"),
+    "chain_semdoc": ("understand", "verstehen"),
+    "chain_tagdoc": ("describe", "beschreiben"),
+    "chain_off": ("off", "aus"),
+    "chain_auto": ("in use, as suggested", "in Gebrauch, wie vorgeschlagen"),
+    "chain_person": ("in use, changed by hand", "in Gebrauch, von Hand geändert"),
+    "chain_stale": ("in use, to be made anew", "in Gebrauch, neu zu machen"),
+    "chain_missing": ("not installed", "nicht installiert"),
+    "chain_photo": ("a photo becomes a PDF through optdoc; a page can be left as it came",
+                    "ein Foto wird durch optdoc zum PDF; eine Seite kann bleiben, wie sie kam"),
+    "chain_needs": ("needs {needs}", "braucht {needs}"),
+    "chain_off_tip": ("{step} is switched off (see the steps on the left).",
+                      "{step} ist ausgeschaltet (siehe die Schritte links)."),
+    "chain_none": ("No step is switched on: there is nothing to do.",
+                   "Kein Schritt ist eingeschaltet: es gibt nichts zu tun."),
+    "chain_anew": ("ocrdoc reads another file now (optdoc was switched off): it starts anew, "
+                   "and what was decided in it went.",
+                   "ocrdoc liest jetzt eine andere Datei (optdoc wurde ausgeschaltet): es "
+                   "beginnt neu, und was darin entschieden war, ist verworfen."),
     "opening_step": ("The step opens on the result of the one before …",
                      "Der Schritt öffnet sich auf dem Ergebnis des vorigen …"),
     "describing": ("ocrdoc writes its result for the description (reading the pages not read "

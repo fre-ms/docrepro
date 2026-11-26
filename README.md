@@ -11,8 +11,8 @@ It joins a family of tools, one tool for one step, each usable on its own:
 
 | order | tool | its step | status |
 |---|---|---|---|
-| 10 | [optdoc](https://github.com/fre-ms/optdoc) | makes the page faithful: upright, unwarped in its true proportions, evenly lit, in its colours | 0.7 |
-| 20 | [ocrdoc](https://github.com/fre-ms/ocrdoc) | recognises areas, text, tables and barcodes, and lays the text over the page | 0.1 |
+| 10 | [optdoc](https://github.com/fre-ms/optdoc) | makes the page faithful: upright, unwarped in its true proportions, evenly lit, in its colours | 0.8 |
+| 20 | [ocrdoc](https://github.com/fre-ms/ocrdoc) | recognises areas, text, tables and barcodes, and lays the text over the page | 0.2 |
 | 30 | semdoc | understands the text: medical terms and identifying information (through lexterm and lexident) | planned |
 | 40 | [tagdoc](https://github.com/fre-ms/tagdoc) | describes the document: title, kind, date, authors, the people it names with copies of their cards, written as medRDS says (XMP and the information dictionary, or a sidecar) | 0.1 |
 
@@ -20,20 +20,24 @@ What they share (configuration documents, the command line's manners, no network
 blocks) is [doccor](https://github.com/fre-ms/doccor)'s. Why the work is divided so, and the contract every
 step keeps: `docs/family-design.md` in optdoc.
 
-**Status: pre-alpha (0.2.0).**
+**Status: pre-alpha (0.3.0).**
 
 ## The chain and its document
 
-`docrepro run <original>` takes the original through every installed step in their order; each step's
-input is the result of the one before. The **chain document** (`<name>.docrepro.json`, also inside the PDF)
-holds the original's SHA-256 and every step's configuration document, nothing else. With it:
+`docrepro run <original>` takes the original through the steps in their order; each step's input is the
+result of the one before. **Every step is optional**: a step that is left out (`--without ocrdoc`, or its
+switch in the window) hands on what it got, untouched. OCR without preparation, preparation without OCR, a
+description alone: each is a chain. The **chain document** (`<name>.docrepro.json`, also inside the PDF)
+holds the original's SHA-256, which steps were in use, and every step's configuration document, nothing
+else. With it:
 
 - **the original gives every file again, byte for byte**: each step reproduces its result, and so each
   step's input is the same again;
 - **the work is resumed** where a person stopped (`docrepro edit --config`);
 - **a change in an earlier step costs no work in the later ones** where it does not move the page: a page
   given more contrast in optdoc keeps the areas a person drew and the text they corrected in ocrdoc; a page
-  turned or unwarped otherwise loses them, and the answer names it.
+  turned or unwarped otherwise loses them, and the answer names it;
+- **a step switched off keeps what a person decided in it**, for when it is switched on again.
 
 ## Steps to come, and how a step joins
 
@@ -64,13 +68,18 @@ docrepro ocrdoc run step1/photo.pdf --out step2/
 docrepro models list                             # the models the steps can use
 docrepro models fetch page-orientation --to models/
 docrepro run scan.pdf --out results/ --models models/
+docrepro run scan.pdf --out results/ --without optdoc      # read the scan as it came
+docrepro run photo.heic --out results/ --without ocrdoc --without tagdoc   # prepare only
 ```
 
 `run` writes the last step's files under the original's name (`<name>.pdf` with ocrdoc's text layer and
 tagdoc's description, `<name>.reading.json`, `<name>.md`) and the chain document `<name>.docrepro.json`, and nothing anywhere else: what the steps make
-on the way goes into a hidden folder inside the results and is removed at once. `edit` opens one window with
-a tab for every step (optdoc's preparation, ocrdoc's filters, areas and text, tagdoc's description); *Apply* writes the same files
-as `run`, *Save and continue later* the chain document, *Cancel* nothing. Every command answers with one JSON
+on the way goes into a hidden folder inside the results and is removed at once. `--without <step>` leaves a
+step out (a photo needs optdoc to become a PDF; give `--no-clean-up` to have it read as it came). `edit`
+opens one window with a tab for every panel of the steps (optdoc's preparation, ocrdoc's filters, areas and
+text, tagdoc's description) and, on the left, the steps themselves: each with a switch and what became of it
+(off; in use as suggested; changed by hand; to be made anew), a filled or an empty circle on its tabs.
+*Apply* writes the same files as `run`, *Save and continue later* the chain document, *Cancel* nothing. Every command answers with one JSON
 object, a failure too, with its kind and its message in English and German. The settings of the steps can be
 given with `run` and `edit`: `--paper`, `--photo`/`--scan`, `--no-clean-up`, `--colour-pages` (optdoc),
 `--reader`, `--languages`, `--no-cells`, `--no-areas` (ocrdoc). `--progress` writes
@@ -106,6 +115,15 @@ faster-starting folder with `--onedir`. See [docs/sidecar.md](docs/sidecar.md).
 ## Planned
 
 - semdoc, once lexcor has its annotation document and its window for a person's review.
+- **attdoc**, a signing step as the last (order 50): a time stamp and a person's signature (the qualified
+  one with the electronic health professional card, or an advanced one with a software certificate),
+  resting on TimeAttest. It will be off unless a person asks for it, and cannot be made again, only
+  verified: the steps before it are made again byte for byte and compared with what was signed.
+- **The file keeps its type.** No step is to force PDF: a picture will go through every step as a picture
+  (optdoc writes the prepared picture in the format it came in, ocrdoc lays its reading beside it, tagdoc
+  writes into the picture or a sidecar as medRDS says for the format). Only **typdoc** (order 5, optional,
+  on for pictures) changes the type: it binds pictures into a PDF as medRDS 9.5 says. Until then a photo
+  becomes a PDF through optdoc. The design: `docs/family-design.md` in optdoc.
 
 ## Licence
 

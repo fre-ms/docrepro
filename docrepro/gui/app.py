@@ -17,7 +17,8 @@ def edit(chain: Chain, out: Path, language: str | None = None,
          self_test: bool = False) -> tuple[str, dict[str, Any]]:
     """Show the window on ``chain``, brought to the front (it is opened from another
     program), and return how it closed ("applied", "saved" or "cancelled") and the
-    configuration documents of its steps.  What the steps make while the window is open
+    configuration documents of its steps; the steps the person left in use are the
+    chain's from then on (``chain.used``).  What the steps make while the window is open
     goes into the hidden working folder inside ``out`` and is removed when it closes.
     With ``self_test`` it goes through once by itself (the check of the standalone
     program)."""
@@ -34,6 +35,8 @@ def edit(chain: Chain, out: Path, language: str | None = None,
             app.exec()
             outcome = window.outcome or "cancelled"
             configs = window.configs() if outcome != "cancelled" else {}
+            if outcome != "cancelled":
+                chain.used = set(window.used)
         finally:
             window.release()
     return outcome, configs
