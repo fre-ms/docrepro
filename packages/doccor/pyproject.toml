@@ -1,7 +1,7 @@
 [project]
 name = "doccor"
 version = "0.3.0"
-description = "The shared core of the document tools typdoc, optdoc, ocrdoc, semdoc and tagdoc: reproducible configuration documents, the command line's manners, no network, pictures as pages, the window's building blocks."
+description = "The shared core of the document tools typdoc, optdoc, ocrdoc and tagdoc: reproducible configuration documents, the command line's manners, no network, pictures as pages, the window's building blocks."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "AGPL-3.0-or-later"

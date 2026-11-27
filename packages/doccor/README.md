@@ -2,9 +2,9 @@
 
 The shared core of the document tools that reproduce photographed and scanned documents as
 digital documents, one step each: typdoc (changes the type: binds pictures into a PDF),
-optdoc (prepares the page), ocrdoc (recognises it), tagdoc (sets a document's metadata),
-and later semdoc (finds medical terms and identifying information) and attdoc (signs).
-What every one of them needs is here, once:
+optdoc (prepares the page), ocrdoc (recognises it), tagdoc (sets a document's metadata): the
+steps of docrepro, which brings a photographed or scanned document as near to its original as
+it can. What every one of them needs is here, once:
 
 - **The configuration document** (`doccor.documents`). Every tool writes one for every
   input (`<stem>.<tool>.json`): everything that decides its step's result, and the results
