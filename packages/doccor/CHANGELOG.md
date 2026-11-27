@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3.0 (2026-11-27)
+
+### Added
+
+- **Pictures as the tools look at them** (`doccor.pictures`), written once where optdoc and
+  ocrdoc each had it: `is_picture` and `SUFFIXES` (JPEG, PNG, TIFF, HEIC and HEIF, WebP,
+  BMP, GIF, PNM), `count` (a file may hold several pictures), `sizes` (each one's width and
+  height in its own pixels, upright, read without decoding), `frame` and `frames` (the
+  pixels as they came: upright as the EXIF orientation says, what is transparent on white,
+  RGB), and `pages`: the pictures of a file as pages, the long side that of A4, the page
+  medRDS 9.5 binds a picture into. `heic_available` says whether HEIC and HEIF can be
+  opened; `NoHeic` is raised where they cannot. The extra `pictures` brings Pillow and
+  pillow-heif.
+- **Kinds of error every tool has, worded once**: `unsupported` (a type the tool cannot
+  open, with `suffix`), `unreadable` and `encrypted`. The tools worded them alike already;
+  a tool may still register them, with the same words.
+
 ## 0.2.0 (2026-11-26)
 
 ### Added

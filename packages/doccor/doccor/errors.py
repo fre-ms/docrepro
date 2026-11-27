@@ -21,6 +21,19 @@ KINDS: dict[str, dict[str, str]] = {
         "en": "The file or folder does not exist.",
         "de": "Die Datei oder den Ordner gibt es nicht.",
     },
+    "unsupported": {
+        "en": "{tool} cannot open files of type {suffix}.",
+        "de": "Dateien vom Typ {suffix} kann {tool} nicht öffnen.",
+    },
+    "unreadable": {
+        "en": "The file cannot be read; it may be damaged or not what its name says.",
+        "de": "Die Datei lässt sich nicht lesen; sie ist vielleicht beschädigt oder nicht, "
+              "was ihr Name sagt.",
+    },
+    "encrypted": {
+        "en": "The PDF is protected by a password.",
+        "de": "Das PDF ist mit einem Kennwort geschützt.",
+    },
     "bad-config": {
         "en": "The configuration cannot be used: {reason}.",
         "de": "Die Konfiguration ist nicht verwendbar: {reason}.",
