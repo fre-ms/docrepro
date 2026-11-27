@@ -1,21 +1,19 @@
 """Shared fixtures: invented pictures of an invented letter in the formats a phone and a
 scanner write, and the reference library of medRDS where it is at hand (``MEDRDS``, else
-``../medRDS``)."""
+``medRDS`` beside this repository)."""
 
 from __future__ import annotations
 
-import base64
 import io
-import json
 import os
 import shutil
-import subprocess
 from pathlib import Path
 
 import pytest
 from PIL import Image, ImageDraw
 
-MEDRDS = Path(os.environ.get("MEDRDS", Path(__file__).resolve().parents[2] / "medRDS"))
+# medRDS beside this repository (tests -> package -> packages -> docrepro -> beside it)
+MEDRDS = Path(os.environ.get("MEDRDS", Path(__file__).resolve().parents[4] / "medRDS"))
 LINES = ["Neurologische Sprechstunde Beispiel", "Musterweg 1, 12345 Musterstadt", "",
          "Betr.: Erika Mustermann, geb. 12.08.1964", "",
          "Sehr geehrte Frau Kollegin,", "anbei der Befund vom 12.03.2026.",
@@ -72,47 +70,3 @@ def png() -> bytes:
 @pytest.fixture(scope="session")
 def heic() -> bytes:
     return encoded(letter(), "HEIF", quality=80)
-
-
-def reference_bind(pictures: list[tuple[str, bytes, bytes | list[bytes] | None]], work: Path
-                   ) -> tuple[bytes, list[dict[str, str]]]:
-    """The same pictures bound by the reference library of medRDS: the PDF and what its
-    origin names."""
-    work.mkdir(parents=True, exist_ok=True)
-    listed = []
-    for n, (name, data, shown) in enumerate(pictures):
-        (work / f"{n}.bin").write_bytes(data)
-        shown_files = []
-        for k, one in enumerate(shown if isinstance(shown, list) else [shown]):
-            if one is not None:
-                (work / f"{n}.{k}.shown").write_bytes(one)
-                shown_files.append(str(work / f"{n}.{k}.shown"))
-        listed.append({"name": name, "file": str(work / f"{n}.bin"),
-                       "shown": (shown_files if isinstance(shown, list)
-                                 else shown_files[0] if shown_files else None)})
-    script = (
-        "import { readFileSync } from 'node:fs';"
-        f"import {{ bindPictures }} from '{(MEDRDS / 'lib' / 'index.mjs').as_posix()}';"
-        f"const listed = {json.dumps(listed)};"
-        "const read = (file) => new Uint8Array(readFileSync(file));"
-        "const pictures = listed.map((p) => ({ name: p.name, bytes: read(p.file),"
-        " ...(p.shown ? { shown: Array.isArray(p.shown) ? p.shown.map(read) : read(p.shown) }"
-        " : {}) }));"
-        "const { bytes, bound } = await bindPictures(pictures);"
-        "console.log(JSON.stringify({ pdf: Buffer.from(bytes).toString('base64'), bound }));")
-    run = subprocess.run(["node", "--input-type=module", "-e", script], capture_output=True,
-                         text=True, check=True)
-    answer = json.loads(run.stdout)
-    return base64.b64decode(answer["pdf"]), answer["bound"]
-
-
-def reference_unbinds(pdf: Path) -> list[str]:
-    """The SHA-256 of every picture the reference library takes out of a bound PDF."""
-    script = (
-        "import { readFileSync } from 'node:fs';"
-        f"import {{ boundFiles, sha256 }} from '{(MEDRDS / 'lib' / 'index.mjs').as_posix()}';"
-        f"const out = await boundFiles(new Uint8Array(readFileSync({json.dumps(str(pdf))})));"
-        "console.log(JSON.stringify(await Promise.all(out.map((b) => b ? sha256(b) : null))));")
-    run = subprocess.run(["node", "--input-type=module", "-e", script], capture_output=True,
-                         text=True, check=True)
-    return list(json.loads(run.stdout))

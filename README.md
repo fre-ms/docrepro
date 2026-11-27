@@ -11,10 +11,10 @@ It joins a family of tools, one tool for one step, each usable on its own:
 
 | order | tool | its step | status |
 |---|---|---|---|
-| 5 | [typdoc](https://github.com/fre-ms/typdoc) | changes the type, and nothing else: binds pictures into one PDF as medRDS says, each in it byte for byte | 0.3 |
-| 10 | [optdoc](https://github.com/fre-ms/optdoc) | makes the page faithful: upright, unwarped in its true proportions, evenly lit, in its colours; gives back the type it got | 0.11 |
-| 20 | [ocrdoc](https://github.com/fre-ms/ocrdoc) | recognises areas, text, tables and barcodes; lays the text over the page of a PDF, beside a picture | 0.4 |
-| 40 | [tagdoc](https://github.com/fre-ms/tagdoc) | describes the document: title, kind, date, authors, the people it names with copies of their cards, written as medRDS says (into the PDF or the picture, or a sidecar) | 0.4 |
+| 5 | [typdoc](packages/typdoc) | changes the type, and nothing else: binds pictures into one PDF as medRDS says, each in it byte for byte | 0.3 |
+| 10 | [optdoc](packages/optdoc) | makes the page faithful: upright, unwarped in its true proportions, evenly lit, in its colours; gives back the type it got | 0.12 |
+| 20 | [ocrdoc](packages/ocrdoc) | recognises areas, text, tables and barcodes; lays the text over the page of a PDF, beside a picture | 0.5 |
+| 40 | [tagdoc](packages/tagdoc) | describes the document: title, kind, date, authors, the people it names with copies of their cards, written as medRDS says (into the PDF or the picture, or a sidecar) | 0.4 |
 
 **What docrepro is for, and what not.** docrepro brings a photographed or scanned document as near to
 the original as it can: its pages, its text, what it says of itself. It goes no further. Understanding
@@ -24,10 +24,10 @@ finished document, which TimeAttest can time-stamp and sign. A signature
 could not be made again from the original anyway, as every step of docrepro is.
 
 What they share (configuration documents, the command line's manners, no network, the window's building
-blocks) is [doccor](https://github.com/fre-ms/doccor)'s. Why the work is divided so, and the contract every
-step keeps: `docs/family-design.md` in optdoc.
+blocks) is [doccor](packages/doccor)'s. Why the work is divided so, and the contract every
+step keeps: [docs/family-design.md](docs/family-design.md).
 
-**Status: pre-alpha (0.10.0).**
+**Status: pre-alpha (0.11.0).**
 
 ## The chain and its document
 
@@ -42,8 +42,11 @@ else. With it:
   step's input is the same again;
 - **the work is resumed** where a person stopped (`docrepro edit --config`);
 - **a change in an earlier step costs no work in the later ones** where it does not move the page: a page
-  given more contrast in optdoc keeps the areas a person drew and the text they corrected in ocrdoc; a page
-  turned or unwarped otherwise loses them, and the answer names it;
+  given more contrast in optdoc keeps the areas a person drew and the text they corrected in ocrdoc; so
+  does a picture that typdoc binds or no longer binds, and a page optdoc is switched off for that it did
+  not move; a page turned or unwarped otherwise loses them, and the answer names it. Every page knows
+  where it came from (the original file and which of its pages), so two letters of the same size never
+  share a person's decisions;
 - **a step switched off keeps what a person decided in it**, for when it is switched on again.
 
 ## How a step joins
@@ -58,7 +61,8 @@ tagdoc = "tagdoc.docrepro:TagdocAdapter"
 
 An adapter opens the step's project on its input (fresh, or as its configuration document says), gives its
 configuration document, makes and writes its result, and says which pages lost a person's decisions
-(`docrepro.steps.Adapter`). The window gets the step's tab the same way. A chain document that names a step
+(`docrepro.steps.Adapter`). The window gets the step's tabs the same way (`tabs`, `panels`), and names no
+step itself: it goes through the steps in use as the chain does. A chain document that names a step
 which is not installed is refused (`step-missing`): without it, the result cannot be made again.
 
 ## Command line
@@ -108,13 +112,44 @@ there. A model is listed only after it did better, measured, than the rules it a
 its side. What a model found is kept in its step's configuration document, so the original and the chain
 document give every file again without any model.
 
+## One repository, six packages
+
+The tools live together here, each a package of its own in `packages/<tool>`, with its own version,
+command line, interface, changelog and tests, and each usable without docrepro:
+
+| package | folder |
+|---|---|
+| doccor, the core | [packages/doccor](packages/doccor) |
+| typdoc | [packages/typdoc](packages/typdoc) |
+| optdoc | [packages/optdoc](packages/optdoc) |
+| ocrdoc | [packages/ocrdoc](packages/ocrdoc) |
+| tagdoc | [packages/tagdoc](packages/tagdoc) |
+| docrepro, which joins them | this folder |
+
+They are a [uv workspace](https://docs.astral.sh/uv/concepts/projects/workspaces/): every package takes the
+others as they stand beside it, and one tag (`v<docrepro's version>`) names one state of them all. A
+package's version changes when the package changes, and only then: a tool that did not change writes the
+same bytes as before, since its version is part of what it writes. Until 27 November 2026 each tool had a
+repository of its own; their histories are here, under their folders.
+
 ## Install
 
-Python 3.12 or later, with [uv](https://docs.astral.sh/uv/); the steps and the core come from their released
-tags:
+Python 3.12 or later, with [uv](https://docs.astral.sh/uv/):
 
 ```
+git clone https://github.com/fre-ms/docrepro
+cd docrepro
 uv sync --extra gui
+```
+
+`uv sync --all-packages --all-extras` installs every package with all it can use, as the tests need it;
+each package's tests run in its folder (`cd packages/ocrdoc && uv run pytest`). A program that uses one tool
+alone takes it from a tag of this repository, the core beside it:
+
+```toml
+[tool.uv.sources]
+ocrdoc = { git = "https://github.com/fre-ms/docrepro", tag = "v0.11.0", subdirectory = "packages/ocrdoc" }
+doccor = { git = "https://github.com/fre-ms/docrepro", tag = "v0.11.0", subdirectory = "packages/doccor" }
 ```
 
 ## Standalone program
@@ -125,11 +160,6 @@ tries it out: the whole way on an invented photo with nothing left outside the r
 again from the chain document, the window without a person, the steps one by one, everything once more
 with the network closed by the system. 163 MB as one file (no more than optdoc 0.6.0 was on its own), or a
 faster-starting folder with `--onedir`. See [docs/sidecar.md](docs/sidecar.md).
-
-## Planned
-
-- What a person decided in ocrdoc goes when typdoc is switched in the window while optdoc is off (ocrdoc
-  then has no frames to go by); the page of a picture is the same either way, so it could go over.
 
 ## Licence
 

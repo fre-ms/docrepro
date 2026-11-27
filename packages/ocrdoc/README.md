@@ -16,16 +16,16 @@ real digital documents, one tool for one step:
 
 | tool | its step |
 |---|---|
-| [typdoc](https://github.com/fre-ms/typdoc) | changes the type, and nothing else: binds pictures into one PDF |
-| [optdoc](https://github.com/fre-ms/optdoc) | makes the page faithful: upright, unwarped, in its true proportions, evenly lit, in its own colours |
+| [typdoc](../typdoc) | changes the type, and nothing else: binds pictures into one PDF |
+| [optdoc](../optdoc) | makes the page faithful: upright, unwarped, in its true proportions, evenly lit, in its own colours |
 | **ocrdoc** | recognises: areas, text, tables, barcodes; lays the text over the page of a PDF, beside a picture |
-| [tagdoc](https://github.com/fre-ms/tagdoc) | describes the document as the standard medRDS says |
+| [tagdoc](../tagdoc) | describes the document as the standard medRDS says |
 
 What they share (configuration documents, the command line's manners, no network, the window's building
-blocks) is [doccor](https://github.com/fre-ms/doccor)'s. No step forces a file type: ocrdoc works on any
+blocks) is [doccor](../doccor)'s. No step forces a file type: ocrdoc works on any
 PDF and any picture, optdoc's or another program's, and knows nothing of the applications that use it.
 
-**Status: pre-alpha (0.4.0).** The code comes out of optdoc 0.6.0, with its history, where it read the
+**Status: pre-alpha (0.5.0).** The code comes out of optdoc 0.6.0, with its history, where it read the
 pages optdoc had prepared. `CHANGELOG.md` lists what changed since.
 
 ## Every step can be reproduced and resumed
@@ -38,12 +38,14 @@ results are stored. The window saves the document and opens it again where the p
 
 The PDF ocrdoc writes carries the documents of every step that made it: optdoc's (`optdoc.json`) as its
 input had it, and ocrdoc's own (`ocrdoc.json`). So a finished document says how it was made, and with the
-original it is made again. When a person goes back and changes a page in optdoc (more contrast), ocrdoc's
-document no longer fits its input by hash; where the page's frame (its geometry, which optdoc records in
-its own document from its version that comes with ocrdoc on) stayed the same, what the person decided in
-ocrdoc stays and what a machine found is found again, and the pages whose frame changed are named.
+original it is made again. When a person goes back and changes a page in optdoc (more contrast), or a
+step before ocrdoc is switched, ocrdoc's document no longer fits its input by hash. Every page is known by
+its origin (the original file it shows, and which of its pages) and its frame (where optdoc moved it, its
+geometry; none where no step moved it): where both stayed the same, what the person decided in ocrdoc
+stays and what a machine found is found again, and the pages that lie otherwise are named. So a picture
+and the PDF typdoc bound it into are the same pages; two letters of the same size never are.
 A picture carries nothing inside, so there the documents lie beside it (`<name>.optdoc.json`,
-`<name>.ocrdoc.json`), and ocrdoc reads optdoc's frames from the one beside the picture.
+`<name>.ocrdoc.json`), and ocrdoc reads optdoc's frames and origins from the one beside the picture.
 
 ## What it does
 
@@ -81,8 +83,8 @@ A picture carries nothing inside, so there the documents lie beside it (`<name>.
 Python 3.12 or later, with [uv](https://docs.astral.sh/uv/):
 
 ```
-git clone https://github.com/fre-ms/ocrdoc
-cd ocrdoc
+git clone https://github.com/fre-ms/docrepro
+cd docrepro/packages/ocrdoc
 uv sync --extra ocr --extra tables --extra gui --extra barcodes
 ```
 
@@ -92,7 +94,7 @@ pillow-heif (to open HEIC and HEIF photos; every other picture opens without it)
 cells; the `barcodes` extra zxing-cpp; the `gui` extra PySide6 (Qt, LGPL 3.0) for the window. Tesseract
 is optional and installed separately (`brew install tesseract tesseract-lang`,
 `apt install tesseract-ocr tesseract-ocr-deu`). The standalone program with every tool of docrepro inside
-is [docrepro](https://github.com/fre-ms/docrepro)'s.
+is [docrepro](../../README.md)'s.
 
 ## Command line
 

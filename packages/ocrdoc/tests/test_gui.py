@@ -17,6 +17,7 @@ from ocrdoc.project import Project
 from tests.synthetic import scan
 
 pytest.importorskip("PySide6")
+from doccor.gui.words import FRAME
 from PySide6.QtCore import Qt  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
@@ -51,7 +52,7 @@ def test_words_in_both_languages() -> None:
                     and node.func.attr == "w" and node.args
                     and isinstance(node.args[0], ast.Constant)):
                 used.add(node.args[0].value)
-    assert used and used <= set(WORDS), used - set(WORDS)
+    assert used and used <= set(WORDS) | set(FRAME), used - set(WORDS) - set(FRAME)
     assert Words("de")("page", number=3) == "Seite 3" and Words("en")("apply") == "Apply"
 
 

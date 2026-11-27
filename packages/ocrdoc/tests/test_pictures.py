@@ -149,7 +149,9 @@ def test_every_picture_of_a_file_is_a_page(tmp_path: Path, report: Path) -> None
 def _beside(picture: Path, frames: list[str], **more: object) -> Path:
     """optdoc's configuration document beside a picture it wrote, with the ``frames``
     given."""
-    upstream = {"format": "optdoc-config", "version": 3, **more,
+    upstream = {"format": "optdoc-config", "version": 4,
+                "input": {"pages": [{"origin": {"sha256": "ab" * 32, "index": n}}
+                                    for n in range(len(frames))]}, **more,
                 "pages": [{"page": n + 1, "plan": None, "frame": f}
                           for n, f in enumerate(frames)]}
     beside = picture.with_name(f"{picture.stem}.optdoc.json")
@@ -192,9 +194,46 @@ def test_the_frames_lie_beside_a_picture(tmp_path: Path, report: Path) -> None:
     finally:
         changed.close()
     third = _picture(report, tmp_path / "c" / "foto.png", compress_level=1)
-    with pytest.raises(OcrdocError) as caught:  # nothing says the pages are the same
+    with pytest.raises(OcrdocError) as caught:  # by itself it is its own original
         Project.open(third, config=config)
     assert caught.value.kind == "config-mismatch"
+
+
+@needs_backend
+def test_a_picture_and_the_pdf_it_is_bound_into(tmp_path: Path, report: Path) -> None:
+    """A photo, and the PDF that holds it as medRDS 9.5 binds it (typdoc does: the JPEG is
+    the image of its page, byte for byte): the same page of the same original, though no
+    step prepared either.  What a person decided on the one stays on the other, both
+    ways."""
+    from doccor import pictures as view
+
+    photo = _picture(report, tmp_path / "foto.jpg")
+    bound = tmp_path / "foto.pdf"
+    with view.pages(photo) as shown, pymupdf.open() as doc:
+        page = doc.new_page(width=shown[0].rect.width, height=shown[0].rect.height)
+        page.insert_image(page.rect, stream=photo.read_bytes())
+        doc.save(bound)
+    project = Project.open(photo)
+    try:
+        assert project.frames == [None]
+        ignored = layout.Region("ignore", (60.0, 700.0, 300.0, 760.0))
+        project.set_regions(0, [ignored])
+        project.set_correction(0, project.text(0) + "\nNachtrag")
+        config = project.config()
+    finally:
+        project.close()
+    taken = Project.open(bound, config=config)
+    try:
+        assert taken.dropped == [] and taken.regions(0) == [layout.rounded(ignored)]
+        assert taken.text(0).endswith("Nachtrag")
+        back = taken.config()
+    finally:
+        taken.close()
+    again = Project.open(photo, config=back)
+    try:
+        assert again.dropped == [] and again.text(0).endswith("Nachtrag")
+    finally:
+        again.close()
 
 
 @needs_backend

@@ -105,7 +105,10 @@ def test_failures_by_kind_without_paths(tmp_path: Path, report: Path,
     for reason, content in configs.items():
         cases[f"bad-config:{reason}"] = ["run", str(good), "--out", str(tmp_path / "o"),
                                          "--config", str(_config(folder, reason, content))]
-    other = json.dumps({**config, "input": {**config["input"], "sha256": "0" * 64}})
+    elsewhere = [{**page, "origin": {"sha256": "0" * 64, "index": 0}}
+                 for page in config["input"]["pages"]]  # the pages of another document
+    other = json.dumps({**config, "input": {**config["input"], "sha256": "0" * 64,
+                                            "pages": elsewhere}})
     cases["config-mismatch"] = ["run", str(good), "--out", str(tmp_path / "o"),
                                 "--config", str(_config(folder, "fremd", other))]
     cases["usage:both"] = ["run", str(good), "--reader", "none", "--config",

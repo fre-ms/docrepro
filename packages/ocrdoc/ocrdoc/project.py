@@ -16,12 +16,16 @@ three ends:
 - **Resuming.**  The window (``ocrdoc edit``) saves the document and opens it again where
   the person stopped; the PDF ocrdoc writes carries it too (``ocrdoc.json``).
 - **Going on after an earlier step changed.**  The document names its input by its
-  SHA-256 and every page's frame (where optdoc prepared the input, a fingerprint of where
-  things lie on the page).  When the input changed but a page's frame did not (more
-  contrast in optdoc), what a person decided on that page stays (areas, a table's grid,
-  corrected text) and what a machine found is found again; where the frame changed, the
-  page's decisions go and :attr:`Project.dropped` says so.  An input without frames must
-  be the very same file ("config-mismatch" otherwise).
+  SHA-256, and every page by its **origin** (the original file the page shows and which
+  of its pages it is, :mod:`doccor.origins`; where optdoc prepared the input, as optdoc's
+  document says) and its **frame** (where optdoc prepared the input, a fingerprint of
+  where things lie on the page).  When the input changed but a page came from the same
+  place and lies as it lay (more contrast in optdoc; the picture, and the PDF typdoc bound
+  it into), what a person decided on that page stays (areas, a table's grid, corrected
+  text) and what a machine found is found again; where a page lies otherwise, its
+  decisions go and :attr:`Project.dropped` says so.  A file none of whose pages came from
+  where the document's did is another document ("config-mismatch"): two letters of the
+  same size never share their decisions.
 """
 
 from __future__ import annotations
@@ -37,7 +41,7 @@ from pathlib import Path
 from typing import Any
 
 import pymupdf
-from doccor import documents
+from doccor import documents, origins
 from doccor.errors import DocError
 
 from ocrdoc import __version__, areas, layout, loading, tables, textlayer
@@ -52,7 +56,7 @@ from ocrdoc.structure import analyse_page_structure
 from ocrdoc.tables import Table
 
 FORMAT = "ocrdoc-config"
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2  # 2: every page's origin
 SUFFIX = ".ocrdoc.json"
 EMBEDDED = "ocrdoc.json"  # the name of the configuration document inside the PDF
 UPSTREAM = "optdoc.json"  # optdoc's, inside a page it prepared: it holds the frames
@@ -148,30 +152,36 @@ def config_bytes(config: dict[str, Any]) -> bytes:
     return documents.document_bytes(config)
 
 
-def _frames(doc: pymupdf.Document, source: Path) -> list[str | None]:
-    """The frame of every page, from the configuration document of the step that
-    prepared the input: optdoc's, which a PDF carries inside and which lies beside a
-    picture (``<stem>.optdoc.json``, where optdoc wrote both); None where there is none.
-    The document beside a picture is taken at its word, as the one inside a PDF is."""
+def _upstream(doc: pymupdf.Document, source: Path
+              ) -> tuple[list[str | None], list[Any] | None]:
+    """The frame and the origin of every page, from the configuration document of the step
+    that prepared the input: optdoc's, which a PDF carries inside and which lies beside a
+    picture (``<stem>.optdoc.json``, where optdoc wrote both); no frames and no origins
+    where there is none.  The document beside a picture is taken at its word, as the one
+    inside a PDF is."""
     frames: list[str | None] = [None] * len(doc)
     try:
         if loading.is_picture(source):
             beside = source.with_name(f"{source.stem}.{UPSTREAM}")
             if not beside.is_file():
-                return frames
+                return frames, None
             upstream = json.loads(beside.read_text(encoding="utf-8"))
             if not isinstance(upstream, dict) or upstream.get("format") != "optdoc-config":
-                return frames
+                return frames, None
         elif UPSTREAM not in doc.embfile_names():
-            return frames
+            return frames, None
         else:
             upstream = json.loads(doc.embfile_get(UPSTREAM).decode("utf-8"))
         for k, page in enumerate(upstream.get("pages", [])[:len(doc)]):
             frame = page.get("frame") if isinstance(page, dict) else None
             frames[k] = frame if isinstance(frame, str) else None
+        named = upstream.get("input", {}).get("pages")
+        found = ([page.get("origin") if isinstance(page, dict) else None for page in named]
+                 if isinstance(named, list) and len(named) == len(doc) else None)
     except Exception:  # an unreadable upstream document: no frames
-        return [None] * len(doc)
-    return frames
+        return [None] * len(doc), None
+    return frames, found
+
 
 
 class Project:
@@ -188,7 +198,9 @@ class Project:
         self.size = size
         self.options = options
         self.pages = [_Page() for _ in range(len(doc))]
-        self.frames = _frames(doc, source)
+        self.frames, given = _upstream(doc, source)
+        # where every page came from: as optdoc's document says, else as the input itself does
+        self.origins = given if given is not None else origins.of(source)
         self.dropped: list[int] = []  # pages whose decisions went: their frame changed
         self.scratch: Path | None = None  # where a page may be written for a moment
         self.models: Path | None = None  # the folder of models the finders may use
@@ -236,17 +248,32 @@ class Project:
                 self._take_page(page, entry, everything=True)
             return
         stored = named.get("pages")
-        if not isinstance(stored, list) or len(stored) != len(self.pages) \
-                or not any(self.frames):
-            raise OcrdocError("config-mismatch")
+        if not isinstance(stored, list) or len(stored) != len(self.pages) or not any(
+                isinstance(then, dict) and origins.same(then.get("origin"), self.origins[n])
+                for n, then in enumerate(stored)):
+            raise OcrdocError("config-mismatch")  # another document
         self._stored_reader = None  # what is read again is read by the engine of now
         for n, (page, entry, then) in enumerate(zip(self.pages, pages, stored, strict=True)):
-            same = isinstance(then, dict) and self.frames[n] is not None \
-                and then.get("frame") == self.frames[n]
-            if same:
+            if self._lies_as(n, then):
                 self._take_page(page, entry, everything=False)
             elif _has_decisions(entry):
                 self.dropped.append(n)
+
+    def _lies_as(self, n: int, then: Any) -> bool:
+        """True when page ``n`` is the page a document's entry names: from the same place
+        (its origin), of the same frame; where it has none (the page as it came, which no
+        step moved), of the same size to a hundredth of a point.  The frame of a page optdoc
+        moved names its size already (and a page optdoc gives as a picture is looked at
+        with the long side of A4, a PDF's page of A4 is a tenth of a point shorter)."""
+        if not isinstance(then, dict) or not origins.same(then.get("origin"), self.origins[n]):
+            return False
+        if then.get("frame") != self.frames[n]:
+            return False
+        if self.frames[n] is not None:
+            return True
+        rect = self.doc[n].rect
+        return all(isinstance(then.get(k), int | float) and abs(then[k] - v) <= 0.01
+                   for k, v in (("width", rect.width), ("height", rect.height)))
 
     def _take_page(self, page: _Page, entry: Any, everything: bool) -> None:
         """One page of a configuration document: all of it (``everything``, the same
@@ -308,7 +335,7 @@ class Project:
         for n in range(len(self.doc)):
             rect = self.doc[n].rect
             sizes.append({"width": round(rect.width, 3), "height": round(rect.height, 3),
-                          "frame": self.frames[n]})
+                          "frame": self.frames[n], "origin": self.origins[n]})
         return {
             "format": FORMAT, "version": FORMAT_VERSION, "made_with": f"ocrdoc {__version__}",
             "input": {"sha256": self.sha256, "bytes": self.size,

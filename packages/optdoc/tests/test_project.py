@@ -5,6 +5,7 @@ of another file, or a broken one, is refused."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -40,7 +41,7 @@ def test_same_input_and_document_same_result(tmp_path: Path, report: Path) -> No
     finally:
         project.close()
     config = json.loads(first["config"])
-    assert config["format"] == "optdoc-config" and config["version"] == 3
+    assert config["format"] == "optdoc-config" and config["version"] == 4
     assert config["options"] == {"photo": None, "clean_up": True, "colour_pages": "jpeg"}
     page = config["pages"][0]
     assert page["plan"]["straighten"] is True and page["by"] == "auto"
@@ -83,7 +84,8 @@ def test_resume_where_a_person_stopped(tmp_path: Path, report: Path) -> None:
 def test_frames(tmp_path: Path, report: Path) -> None:
     """The frame of a page: the same while only its light, contrast, colour or masks
     change, another once it is turned, straightened or unwarped otherwise.  A born-digital
-    page has the frame of its size alone, as has a page whose plan does nothing."""
+    page has none, as the page of the original has none, and no more has a page whose plan
+    does not move it."""
     source = scan(report, tmp_path / "scan.pdf", rotation=2.0)
     project = Project.open(source)
     try:
@@ -98,14 +100,14 @@ def test_frames(tmp_path: Path, report: Path) -> None:
             project.set_plan(0, cleanup.CleanupPlan(**{**plan.__dict__, **change}))
             assert project.frame(0) != first, change
         project.set_plan(0, None)
-        bare = project.frame(0)
+        assert project.frame(0) is None
         project.set_plan(0, cleanup.CleanupPlan(contrast=True))
-        assert project.frame(0) == bare  # only lit: where the page as it came lies
+        assert project.frame(0) is None  # only lit: where the page as it came lies
     finally:
         project.close()
     digital = Project.open(report)
     try:
-        assert digital.plan(0) is None and digital.frame(0) == digital.frame(1)
+        assert digital.plan(0) is None and digital.frame(0) is None and digital.frame(1) is None
     finally:
         digital.close()
 
@@ -201,21 +203,26 @@ def test_refused_configurations(tmp_path: Path, report: Path) -> None:
 
 @needs_opencv
 def test_the_same_pages_as_another_file(tmp_path: Path, report: Path) -> None:
-    """A picture and a PDF that shows it page for page (as typdoc binds it): a caller that
-    knows they are the same document takes a document of the one for the other.  What a
-    person planned stays; optdoc's own plans are suggested anew; a page of another size,
-    or no word of the caller, is another file."""
+    """A photo and a PDF that shows it page for page as medRDS 9.5 binds it (as typdoc
+    does: the JPEG is the image of its page, byte for byte): every page comes from the same
+    picture (:mod:`doccor.origins`), so a document of the one is taken for the other.  What
+    a person planned stays; optdoc's own plans are suggested anew; a page of another
+    picture, though of the same size, belongs to another document."""
     import cv2
     from doccor import pictures as view
 
     from tests.synthetic import camera_photo
 
-    photo = tmp_path / "foto.png"
+    def bound_as_medrds(picture: Path, target: Path) -> Path:
+        with view.pages(picture) as shown, pymupdf.open() as doc:
+            page = doc.new_page(width=shown[0].rect.width, height=shown[0].rect.height)
+            page.insert_image(page.rect, stream=picture.read_bytes())
+            doc.save(target)
+        return target
+
+    photo = tmp_path / "foto.jpg"
     cv2.imwrite(str(photo), camera_photo(report, pitch=14, fill=0.85, size=(900, 1200))[0])
-    bound = tmp_path / "foto.pdf"
-    pages = view.pages(photo)
-    pages.save(bound)
-    pages.close()
+    bound = bound_as_medrds(photo, tmp_path / "foto.pdf")
     project = Project.open(photo)
     try:
         suggested = project.plan(0)
@@ -226,32 +233,44 @@ def test_the_same_pages_as_another_file(tmp_path: Path, report: Path) -> None:
         config = project.config()
     finally:
         project.close()
-    with pytest.raises(OptdocError) as caught:
-        Project.open(bound, config=config)
-    assert caught.value.kind == "config-mismatch"
-    taken = Project.open(bound, config=config, same_document=True)
+    assert config["input"]["pages"][0]["origin"] == {
+        "sha256": hashlib.sha256(photo.read_bytes()).hexdigest(), "index": 0}
+    taken = Project.open(bound, config=config)
     try:
         assert taken.rebased and taken.decided_by_person == [0]
         assert taken.plan(0).full_dict() == mine.full_dict()
         assert taken.frame(0) == config["pages"][0]["frame"]  # the same page, the same frame
         assert taken.config()["input"]["suffix"] == ".pdf"
+        origin = config["input"]["pages"][0]["origin"]
+        assert taken.config()["input"]["pages"][0]["origin"] == origin
+        of_the_pdf = taken.config()
     finally:
         taken.close()
+    back = Project.open(photo, config=of_the_pdf)
+    try:  # and back from the PDF's document to the photo
+        assert back.rebased and back.plan(0).full_dict() == mine.full_dict()
+    finally:
+        back.close()
     auto = Project.open(photo)
     try:
         auto_config = auto.config()
     finally:
         auto.close()
-    again = Project.open(bound, config=auto_config, same_document=True)
-    try:  # optdoc's own plan is made anew on this file, and comes out the same
+    fresh = Project.open(bound)
+    try:  # what optdoc suggests for the PDF by itself (MuPDF decodes the JPEG a little
+        own = fresh.plan(0)  # otherwise than Pillow: the corners may lie a pixel apart)
+        assert own is not None and own.unwarp
+    finally:
+        fresh.close()
+    again = Project.open(bound, config=auto_config)
+    try:  # optdoc's own plan is made anew on this file, as for the PDF by itself
         assert again.rebased and again.decided_by_person == []
-        assert again.plan(0).full_dict() == suggested.full_dict()
+        assert again.plan(0).full_dict() == own.full_dict()
     finally:
         again.close()
-    other = tmp_path / "anders.pdf"
-    with pymupdf.open() as doc:
-        doc.new_page(width=595, height=842)
-        doc.save(other)
-    with pytest.raises(OptdocError) as caught:
-        Project.open(other, config=config, same_document=True)
-    assert caught.value.kind == "config-mismatch"
+    alike = tmp_path / "anderes-foto.jpg"  # another picture of the same size
+    cv2.imwrite(str(alike), camera_photo(report, pitch=10, fill=0.85, size=(900, 1200))[0])
+    for other in (alike, bound_as_medrds(alike, tmp_path / "anders.pdf")):
+        with pytest.raises(OptdocError) as caught:
+            Project.open(other, config=config)
+        assert caught.value.kind == "config-mismatch", other.name

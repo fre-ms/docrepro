@@ -2,8 +2,8 @@
 docrepro's ``steps``): it takes the document of the step before (ocrdoc's PDF with its
 text, or a picture with its reading beside it) and writes the description into it, or
 beside it into a sidecar.  docrepro does not import
-this module's types; it calls the methods its ``Adapter`` names, and :meth:`panel` for its
-window.
+this module's types; it calls the methods its ``Adapter`` names, and :meth:`tabs` and
+:meth:`panels` for its window.
 """
 
 from __future__ import annotations
@@ -53,8 +53,15 @@ class TagdocAdapter:
     def close(self, project: Project) -> None:
         project.close()
 
-    def panel(self, project: Project, words: Any) -> Any:
-        """The form for docrepro's window."""
+    def tabs(self, words: Any) -> list[str]:
+        """The tab tagdoc brings into docrepro's window."""
+        from tagdoc.gui import words as _registered  # noqa: F401  (registers tagdoc's words)
+
+        return [words("tab_describe")]
+
+    def panels(self, project: Project, words: Any, run: Any) -> list[Any]:
+        """The form of that tab: what a person writes into it goes into the project when
+        the window asks (``commit``)."""
         from tagdoc.gui.panel import DescribePanel
 
-        return DescribePanel(project, words)
+        return [DescribePanel(project, words)]

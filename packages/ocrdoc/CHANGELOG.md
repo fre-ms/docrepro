@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.5.0 (2026-11-27)
+
+Interface 4; `ocrdoc-config` version 2 (version 1 is no longer read).
+
+### Added
+
+- **Every page says where it came from**: `input.pages[].origin`, as optdoc's document names it,
+  else as the input itself shows it (doccor's `origins`).
+
+### Changed
+
+- **What a person decided goes with the page, not with the frame alone.** A page keeps it where
+  it comes from the same origin and has the same frame (and, without one, the same size): more
+  contrast in optdoc; a picture and the PDF typdoc bound it into, whichever ocrdoc is handed;
+  optdoc switched off for a page it did not move. A page that lies otherwise loses it (`dropped`).
+- **A file none of whose pages comes from where the document's did is refused**
+  (`config-mismatch`). Before, two letters of the same size that optdoc prepared without moving
+  them had the same frames, and a correction made in the one was taken into the other.
+- ocrdoc is a package of docrepro's repository (`packages/ocrdoc`); its history came along.
+
 ## 0.4.0 (2026-11-27)
 
 A picture stays a picture. docrepro forces no file type; ocrdoc now reads a picture as well as a

@@ -16,13 +16,14 @@ marked as optdoc's suggestion or a person's decision.  It serves three ends:
   that made it).  ocrdoc, which reads optdoc's PDF, keeps what a person decided on a page
   as long as its frame stays the same, even when the page itself changed (more contrast).
 
-The document names its input by its SHA-256; another file is refused ("config-mismatch").
-optdoc always starts from the original, never from an earlier result.  One exception, for
-a caller that knows better (``same_document``): a picture and the PDF typdoc bound it
-into show the very same pages (the page of a picture is the page typdoc binds it into,
-:mod:`doccor.pictures`), so a document made on one of them is taken for the other, where
-every page has the same size; what a person planned stays, and optdoc's own suggestions
-are made anew (:attr:`Project.rebased`).
+The document names its input by its SHA-256, and every page by where it came from
+(its **origin**, :mod:`doccor.origins`: the original file the page shows, and which of its
+pages it is).  optdoc always starts from the original, never from an earlier result.  A
+document made on another file is taken where that file shows the very same pages, every
+one of the same origin and the same size: a picture, and the PDF typdoc bound it into, so
+that switching typdoc keeps what a person planned.  What a person planned stays, and
+optdoc's own suggestions are made anew (:attr:`Project.rebased`).  Any other file is
+refused ("config-mismatch").
 """
 
 from __future__ import annotations
@@ -34,7 +35,7 @@ from pathlib import Path
 from typing import Any
 
 import pymupdf
-from doccor import documents
+from doccor import documents, origins
 from doccor.errors import DocError
 
 from optdoc import __version__, cleanup, pictures
@@ -44,7 +45,7 @@ from optdoc.errors import OptdocError
 from optdoc.loading import is_picture, open_document
 
 FORMAT = "optdoc-config"
-FORMAT_VERSION = 3  # 3: no paper (a picture stays a picture; typdoc binds one into a PDF)
+FORMAT_VERSION = 4  # 3: no paper (a picture stays a picture); 4: every page's origin
 SUFFIX = ".optdoc.json"
 EMBEDDED = "optdoc.json"  # the name of the configuration document inside the PDF
 DPI = 300  # the resolution pages are prepared at
@@ -116,11 +117,13 @@ def _plan_key(plan: cleanup.CleanupPlan | None) -> str:
     return json.dumps(plan.full_dict(), sort_keys=True)
 
 
-def frame(page: pymupdf.Page, plan: cleanup.CleanupPlan | None) -> str:
+def frame(page: pymupdf.Page, plan: cleanup.CleanupPlan | None) -> str | None:
     """The frame of a page: a fingerprint of where things lie on it once prepared by
     ``plan``, its size and what of the plan moves the page (a quarter turn, the sheet's
     corners, the tilt straightened), each rounded as the configuration stores it.  Light,
-    contrast, colour and masks leave it as it is."""
+    contrast, colour and masks leave it as it is.  None where nothing moves the page: it
+    lies as the page of the original does, which has no frame either, so that a step
+    after optdoc keeps what a person decided there when optdoc is switched off."""
     moved = cleanup.geometry_only(plan) if plan is not None and plan.active else None
     geometry = None if moved is None else {
         "rotation": moved.rotation,
@@ -128,9 +131,9 @@ def frame(page: pymupdf.Page, plan: cleanup.CleanupPlan | None) -> str:
                     if moved.unwarp and moved.corners else None),
         "angle": round(moved.angle, 3) if moved.straighten and abs(moved.angle) >= 0.05
         else None}
-    if geometry is not None and not geometry["rotation"] and geometry["corners"] is None \
-            and geometry["angle"] is None:
-        geometry = None  # a page only lit or cleaned lies where the page as it came lies
+    if geometry is None or (not geometry["rotation"] and geometry["corners"] is None
+                            and geometry["angle"] is None):
+        return None  # a page only lit or cleaned lies where the page as it came lies
     rect = page.rect
     key = json.dumps({"size": [round(rect.width, 2), round(rect.height, 2)],
                       "geometry": geometry}, sort_keys=True)
@@ -198,6 +201,7 @@ class Project:
         self.size = size
         self.options = options
         self.pages = [_Page() for _ in range(len(doc))]
+        self.origins = origins.of(source)  # where every page came from
         self.rebased = False  # taken from a document of another file with the same pages
         self.models: Path | None = None  # the folder of models the suggestion may use
         self._layer: dict[int, bool] = {}
@@ -206,16 +210,12 @@ class Project:
     # -- opening and saving --------------------------------------------------------------------
     @classmethod
     def open(cls, source: str | Path, options: Options | None = None,
-             config: dict[str, Any] | None = None, same_document: bool = False) -> Project:
+             config: dict[str, Any] | None = None) -> Project:
         """A project on ``source`` (a photo, an image, a PDF): fresh with ``options``, or
-        as ``config`` left it (whose settings then count).  Raises "config-mismatch" when
-        the document belongs to another file, and what
-        :func:`optdoc.loading.open_document` raises.
-
-        ``same_document``: the caller knows that ``source`` shows the very pages the
-        document was made on, as another file (a picture, and typdoc's PDF of it).  The
-        document is then taken where every page has the same size ("config-mismatch"
-        where one has not): a person's plans stay, the rest is suggested anew."""
+        as ``config`` left it (whose settings then count).  A document of another file is
+        taken where that file shows the same pages (see the module).  Raises
+        "config-mismatch" when the document belongs to another document, and what
+        :func:`optdoc.loading.open_document` raises."""
         source = Path(source)
         if not source.is_file():
             raise OptdocError("missing")
@@ -226,8 +226,6 @@ class Project:
             if not isinstance(named, dict):
                 raise OptdocError("config-mismatch")
             other = named.get("sha256") != sha256
-            if other and not same_document:
-                raise OptdocError("config-mismatch")
             options = Options.from_dict(config.get("options", {}))
         options = options or Options()
         doc = open_document(source)
@@ -245,16 +243,16 @@ class Project:
 
     def _take_persons(self, config: dict[str, Any]) -> None:
         """The plans a person made, from a document of another file that shows the same
-        pages: every page must have the size the document names (to a hundredth of a
-        point); optdoc suggests the rest anew."""
+        pages: every page must come from where the document says its page came from, and
+        have the size it names (to a hundredth of a point); optdoc suggests the rest anew."""
         sizes = config["input"].get("pages")
         if not isinstance(sizes, list) or len(sizes) != len(self.pages):
             raise OptdocError("config-mismatch")
         for n, size in enumerate(sizes):
             rect = self.original[n].rect
-            if not isinstance(size, dict) or not all(
-                    isinstance(size.get(k), int | float) and abs(size[k] - v) <= 0.01
-                    for k, v in (("width", rect.width), ("height", rect.height))):
+            if not isinstance(size, dict) or not origins.same(size.get("origin"), self.origins[n]) \
+                    or not all(isinstance(size.get(k), int | float) and abs(size[k] - v) <= 0.01
+                               for k, v in (("width", rect.width), ("height", rect.height))):
                 raise OptdocError("config-mismatch")
         pages = config.get("pages")
         self._take_pages(pages)  # checked as a document of this file would be
@@ -287,7 +285,8 @@ class Project:
         for n, page in enumerate(self.pages):
             plan = self.plan(n)
             rect = self.original[n].rect
-            sizes.append({"width": round(rect.width, 3), "height": round(rect.height, 3)})
+            sizes.append({"width": round(rect.width, 3), "height": round(rect.height, 3),
+                          "origin": self.origins[n]})
             entry: dict[str, Any] = {"page": n + 1,
                                      "plan": plan.full_dict() if plan is not None else None,
                                      "by": "person" if page.by_person else "auto",
@@ -379,20 +378,26 @@ class Project:
         page.by_person = by_person
         page.found_with = [] if by_person else list(page.suggested_with)
 
-    def frame(self, n: int) -> str:
+    def frame(self, n: int) -> str | None:
         """The frame of a page as its plan prepares it (:func:`frame`)."""
         return frame(self.original[n], self.plan(n))
 
     def _image(self, n: int) -> tuple[bytes, float, float] | None:
         """The prepared image of a page and the size of its page (computed once per
-        plan); None for a page that is left as it came."""
+        plan); None for a page that is left as it came.  A page that nothing of its plan
+        moves (it has no frame) keeps the size of the page as it came, to the point, not
+        the size its rounded pixels would give: it lies as the original's page lies."""
         plan = self.active_plan(n)
         if plan is None:
             return None
         key = _plan_key(plan) + self.options.colour_pages
         if n not in self._images or self._images[n][0] != key:
-            self._images[n] = (key, cleanup.cleaned_image(self.original[n], plan, DPI,
-                                                          self.options.colour_pages))
+            image, width, height = cleanup.cleaned_image(self.original[n], plan, DPI,
+                                                         self.options.colour_pages)
+            if self.frame(n) is None:
+                rect = self.original[n].rect
+                width, height = rect.width, rect.height
+            self._images[n] = (key, (image, width, height))
         return self._images[n][1]
 
     def original_png(self, n: int, dpi: int = 100) -> bytes:

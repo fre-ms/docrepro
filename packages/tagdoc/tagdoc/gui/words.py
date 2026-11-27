@@ -7,14 +7,7 @@ from doccor.gui import words as _words
 from doccor.gui.words import LANGUAGES, Words, system_language
 
 WORDS: dict[str, tuple[str, str]] = {  # key: (English, German)
-    "title": ("{tool}: {name}", "{tool}: {name}"),
-    "apply": ("Apply", "Übernehmen"),
-    "later": ("Save and continue later", "Speichern und später weitermachen"),
-    "cancel": ("Cancel", "Abbrechen"),
-    "discard_title": ("Discard the work?", "Arbeit verwerfen?"),
-    "discard_text": ("Nothing will be written. Discard what was done in this window?",
-                     "Es wird nichts geschrieben. Das in diesem Fenster Getane verwerfen?"),
-    "failed": ("That did not work: {error}", "Das ging nicht: {error}"),
+    "tab_describe": ("Describe", "Beschreiben"),  # its tab in docrepro's window
     "describe_help": ("What the document says about itself, as medRDS writes it into the PDF "
                       "or the picture (or into a sidecar). Grey: tagdoc's suggestion, from the "
                       "text and from what the file says already; what you change is yours. "

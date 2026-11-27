@@ -221,7 +221,7 @@ def test_a_picture_goes_on_as_a_pdf_or_stays_a_picture(tmp_path: Path, report: P
     assert Path(kept["document"]).name == "foto.jpg" and kept["pages"] == 1
     assert Path(kept["document"]).read_bytes()[:3] == b"\xff\xd8\xff"  # a JPEG
     held = by_tool(load_chain(kept["config"]))["optdoc"]["config"]
-    assert held["input"]["suffix"] == ".jpg" and held["version"] == 3
+    assert held["input"]["suffix"] == ".jpg" and held["version"] == 4
     once_more = Chain.open(photo, chain=load_chain(kept["config"])).run(tmp_path / "kept-again")
     for key in ("document", "config"):
         assert Path(once_more[key]).read_bytes() == Path(kept[key]).read_bytes(), key

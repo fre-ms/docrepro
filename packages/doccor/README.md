@@ -34,17 +34,25 @@ it can. What every one of them needs is here, once:
   whether it is handed the picture or typdoc's PDF of it. Also: which files are pictures,
   how many a file holds, each one's size in its own pixels (upright, without decoding it),
   and its pixels as they came.
+- **Where the pages of a file came from** (`doccor.origins`): for every page, the original
+  file it shows and which of its pages it is. A picture is its own original; a page of a PDF
+  is the file it names as its source (as medRDS 9.5 binds a picture that is no JPEG), else
+  the JPEG it is and nothing else (as 9.5 binds a JPEG), else the PDF and the page's number.
+  So a picture and the PDF typdoc bound it into have the same origins, and two letters of the
+  same size never do; a tool that is handed another file than its configuration document was
+  made on keeps a person's decisions on a page only where it came from the same place.
 - **The window's building blocks** (`doccor.gui`, extra `gui`): the page view, work off the
-  window's thread, words in two languages.
+  window's thread, words in two languages, the words of every window's frame once.
 
-**Status: pre-alpha (0.3.0).** The code comes from optdoc 0.6.0, with its behaviour; the
+**Status: pre-alpha (0.4.0).** The code comes from optdoc 0.6.0, with its behaviour; the
 pictures from optdoc 0.10.0 and ocrdoc 0.4.0, which each had them.
 
 ## Install
 
-Python 3.12 or later, with [uv](https://docs.astral.sh/uv/): `uv sync --dev --extra gui`,
-tests with `uv run pytest`. Every tool names one released tag of doccor, and all of them the
-same: a new tag of doccor is followed by one of each tool.
+doccor is a package of the repository of [docrepro](../../README.md), beside the tools that
+share it, which take it as it stands there: one tag of the repository names one state of the
+core and of every tool. Python 3.12 or later, with [uv](https://docs.astral.sh/uv/), in this
+folder: `uv sync --extra gui --extra pictures`, tests with `uv run pytest`.
 
 ## Licence
 

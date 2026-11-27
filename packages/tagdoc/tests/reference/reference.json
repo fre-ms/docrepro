@@ -1,0 +1,474 @@
+{
+ "embedded": {
+  "jpg-exif": "1210a5de50180815053950d4cc6c7cab411322a64f17611ac1408c7cace75759",
+  "jpg-plain": "415e03c536aace231610f6c0f112080c45081c5ddc91732fc01428c4f7e52441",
+  "png-exif": "200d22b6cb86771d5231ed4c71e94cc8c1630ac8e7ab9ccfd62ec4a3cee11ea5",
+  "png-plain": "ed9c0ea1539a9297afdb3ea6fefe9469c6772b4b1da94ad71ef82926bed35b39"
+ },
+ "fields": {
+  "authenticator": "Dr. Erika Beispiel <mailto:beispiel@praxis.example>",
+  "cards": [
+   "BEGIN:VCARD\nVERSION:4.0\nUID:urn:uuid:4D2C9B1E-7A3F-4C5D-9E8F-0A1B2C3D4E5F\nKIND:org\nFN:Labor Muster GmbH\nORG:Labor Muster GmbH\nEMAIL:befunde@labor.example\nTEL:+49-821-000000\nX-MEDDAV-BSNR:999999900\nEND:VCARD\n"
+  ],
+  "confidentiality": "R",
+  "creator": [
+   "Dr. Erika Beispiel <mailto:beispiel@praxis.example>"
+  ],
+  "creatorTool": "docrepro 0.1.0",
+  "date": "2026-03-12T09:30:00+01:00",
+  "description": "Blutbild",
+  "institution": [
+   "Labor Muster GmbH <mailto:befunde@labor.example> <urn:uuid:4d2c9b1e-7a3f-4c5d-9e8f-0a1b2c3d4e5f>"
+  ],
+  "kind": "lab",
+  "language": [
+   "de"
+  ],
+  "source": "Ihr Zeichen 2026/1234",
+  "subject": [
+   "Kalium",
+   "Natrium"
+  ],
+  "title": "Laborbefund <Kalium> & mehr",
+  "typeCode": [
+   "http://loinc.org|11502-2"
+  ]
+ },
+ "fields_packet": "<?xpacket begin=\"\ufeff\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>\n<x:xmpmeta xmlns:x=\"adobe:ns:meta/\">\n <rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:Description rdf:about=\"\"\n    xmlns:dc=\"http://purl.org/dc/elements/1.1/\"\n    xmlns:dcterms=\"http://purl.org/dc/terms/\"\n    xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\"\n    xmlns:xmpMM=\"http://ns.adobe.com/xap/1.0/mm/\"\n    xmlns:stRef=\"http://ns.adobe.com/xap/1.0/sType/ResourceRef#\"\n    xmlns:stEvt=\"http://ns.adobe.com/xap/1.0/sType/ResourceEvent#\"\n    xmlns:medrds=\"https://medrds.org/ns/1.0/\">\n   <dc:title><rdf:Alt><rdf:li xml:lang=\"x-default\">Laborbefund &lt;Kalium&gt; &amp; mehr</rdf:li></rdf:Alt></dc:title>\n   <dc:type><rdf:Bag><rdf:li>lab</rdf:li></rdf:Bag></dc:type>\n   <dc:creator><rdf:Seq><rdf:li>Dr. Erika Beispiel &lt;mailto:beispiel@praxis.example&gt;</rdf:li></rdf:Seq></dc:creator>\n   <dc:description><rdf:Alt><rdf:li xml:lang=\"x-default\">Blutbild</rdf:li></rdf:Alt></dc:description>\n   <dc:subject><rdf:Bag><rdf:li>Kalium</rdf:li><rdf:li>Natrium</rdf:li></rdf:Bag></dc:subject>\n   <dc:language><rdf:Bag><rdf:li>de</rdf:li></rdf:Bag></dc:language>\n   <dc:source>Ihr Zeichen 2026/1234</dc:source>\n   <xmp:CreatorTool>docrepro 0.1.0</xmp:CreatorTool>\n   <xmp:CreateDate>2026-03-12T09:30:00+01:00</xmp:CreateDate>\n   <medrds:typeCode><rdf:Bag><rdf:li>http://loinc.org|11502-2</rdf:li></rdf:Bag></medrds:typeCode>\n   <medrds:institution><rdf:Seq><rdf:li>Labor Muster GmbH &lt;mailto:befunde@labor.example&gt; &lt;urn:uuid:4d2c9b1e-7a3f-4c5d-9e8f-0a1b2c3d4e5f&gt;</rdf:li></rdf:Seq></medrds:institution>\n   <medrds:authenticator>Dr. Erika Beispiel &lt;mailto:beispiel@praxis.example&gt;</medrds:authenticator>\n   <medrds:confidentiality>R</medrds:confidentiality>\n   <medrds:cards><rdf:Bag><rdf:li>BEGIN:VCARD\nVERSION:4.0\nUID:urn:uuid:4D2C9B1E-7A3F-4C5D-9E8F-0A1B2C3D4E5F\nKIND:org\nFN:Labor Muster GmbH\nORG:Labor Muster GmbH\nEMAIL:befunde@labor.example\nTEL:+49-821-000000\nX-MEDDAV-BSNR:999999900\nEND:VCARD\n</rdf:li></rdf:Bag></medrds:cards>\n  </rdf:Description>\n </rdf:RDF>\n</x:xmpmeta>\n<?xpacket end=\"w\"?>\n",
+ "library": {
+  "commit": "2577bb458ed419f36662804b5f9dfdd90a8b4150",
+  "version": "0.15.1"
+ },
+ "meta": {
+  "creator": [
+   "Dr. Erika M\u00fcller <mailto:mueller@labor.example>"
+  ],
+  "date": "2026-03-12",
+  "description": "Befund des Labors, erste Seite",
+  "kind": "lab",
+  "language": [
+   "de"
+  ],
+  "title": "Laborbefund"
+ },
+ "packet": "<?xpacket begin=\"\ufeff\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>\n<x:xmpmeta xmlns:x=\"adobe:ns:meta/\">\n <rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:Description rdf:about=\"\"\n    xmlns:dc=\"http://purl.org/dc/elements/1.1/\"\n    xmlns:dcterms=\"http://purl.org/dc/terms/\"\n    xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\"\n    xmlns:xmpMM=\"http://ns.adobe.com/xap/1.0/mm/\"\n    xmlns:stRef=\"http://ns.adobe.com/xap/1.0/sType/ResourceRef#\"\n    xmlns:stEvt=\"http://ns.adobe.com/xap/1.0/sType/ResourceEvent#\"\n    xmlns:medrds=\"https://medrds.org/ns/1.0/\">\n   <dc:title><rdf:Alt><rdf:li xml:lang=\"x-default\">Laborbefund</rdf:li></rdf:Alt></dc:title>\n   <dc:type><rdf:Bag><rdf:li>lab</rdf:li></rdf:Bag></dc:type>\n   <dc:creator><rdf:Seq><rdf:li>Dr. Erika M\u00fcller &lt;mailto:mueller@labor.example&gt;</rdf:li></rdf:Seq></dc:creator>\n   <dc:description><rdf:Alt><rdf:li xml:lang=\"x-default\">Befund des Labors, erste Seite</rdf:li></rdf:Alt></dc:description>\n   <dc:language><rdf:Bag><rdf:li>de</rdf:li></rdf:Bag></dc:language>\n   <xmp:CreateDate>2026-03-12</xmp:CreateDate>\n  </rdf:Description>\n </rdf:RDF>\n</x:xmpmeta>\n<?xpacket end=\"w\"?>\n",
+ "schema": "28a4495a595457d9bd9a258281b1447cb836bb6920d8d359cb4c10f850d6258b",
+ "written": {
+  "gif-exif": {
+   "ending": "gif",
+   "input": "bb188fe57e32463f2bb8c06d5b7ebab948edb2df631449413cc6b5d5743fe746",
+   "once": "1a67df290fc8b4d390c2407d1fa54a8885ec46e6daf3b69441f379964f41a5f0",
+   "read": {
+    "creator": [
+     "Dr. Erika M\u00fcller <mailto:mueller@labor.example>"
+    ],
+    "date": "2026-03-12",
+    "description": "Befund des Labors, erste Seite",
+    "kind": "lab",
+    "language": [
+     "de"
+    ],
+    "title": "Laborbefund"
+   },
+   "twice": "41bf1bb81f426e3dcc0f7326059ff791e1e7d9528ad7594477c9a5c043e7f31e",
+   "written": [
+    "xmp"
+   ]
+  },
+  "gif-plain": {
+   "ending": "gif",
+   "input": "bb188fe57e32463f2bb8c06d5b7ebab948edb2df631449413cc6b5d5743fe746",
+   "once": "1a67df290fc8b4d390c2407d1fa54a8885ec46e6daf3b69441f379964f41a5f0",
+   "read": {
+    "creator": [
+     "Dr. Erika M\u00fcller <mailto:mueller@labor.example>"
+    ],
+    "date": "2026-03-12",
+    "description": "Befund des Labors, erste Seite",
+    "kind": "lab",
+    "language": [
+     "de"
+    ],
+    "title": "Laborbefund"
+   },
+   "twice": "41bf1bb81f426e3dcc0f7326059ff791e1e7d9528ad7594477c9a5c043e7f31e",
+   "written": [
+    "xmp"
+   ]
+  },
+  "heic-exif": {
+   "ending": "heic",
+   "input": "55343126459e6b93fe99f6a5edc2c8ee95ead3007045d288dd5189ed26b3dea4",
+   "once": "17f7dac22a0d44bbb23724f6af0e3ecaf031059ae907a5705b280c502a035e60",
+   "read": {
+    "creator": [
+     "Dr. Erika M\u00fcller <mailto:mueller@labor.example>"
+    ],
+    "date": "2026-03-12",
+    "description": "Befund des Labors, erste Seite",
+    "kind": "lab",
+    "language": [
+     "de"
+    ],
+    "title": "Laborbefund"
+   },
+   "twice": "4dba81b332d200167ab2bfe4f2c6cfdaac2e77e5aab5022eddcbe76bbb9c360a",
+   "written": [
+    "xmp",
+    "exif"
+   ]
+  },
+  "heic-idat": {
+   "ending": "heic",
+   "input": "6a341e60067ab91d67a666a2996ed0e55bad87bc8cd9f33accabcb4c7736d30c",
+   "once": "5f13ab252bfdc84224a292d5492bc48a1df35256c1bc4809935ed4cf237a1d28",
+   "read": {
+    "creator": [
+     "Dr. Erika M\u00fcller <mailto:mueller@labor.example>"
+    ],
+    "date": "2026-03-12",
+    "description": "Befund des Labors, erste Seite",
+    "kind": "lab",
+    "language": [
+     "de"
+    ],
+    "title": "Laborbefund"
+   },
+   "twice": "2874afb3a17e3c16be09e7d3fcd3916d9ada506fd6597c4487aa8a569c1348ab",
+   "written": [
+    "xmp",
+    "exif"
+   ]
+  },
+  "heic-meta-last": {
+   "ending": "heic",
+   "input": "b803a428a8fc85e7a1674f791169e5925a5a8a214bcb16f72bc97b7aadf8f829",
+   "once": "f5be6ecd9e63859c783dc9f1ee1996a10132d343bc80cc72f3ff9c7611a74d94",
+   "read": {
+    "creator": [
+     "Dr. Erika M\u00fcller <mailto:mueller@labor.example>"
+    ],
+    "date": "2026-03-12",
+    "description": "Befund des Labors, erste Seite",
+    "kind": "lab",
+    "language": [
+     "de"
+    ],
+    "title": "Laborbefund"
+   },
+   "twice": "eaf1ec7b5e97db17d974dcedbd6c3eddafbad2ea5001244a17a0b7f5f3d3c35b",
+   "written": [
+    "xmp",
+    "exif"
+   ]
+  },
+  "heic-no-base": {
+   "ending": "heic",
+   "input": "cb93cd7fd199fa38c27c9d6fba3d46cd20ea29cf11917413a98b5e092339e871",
+   "once": "6dc08371ec0ea0458dc7d890848577bbfd79bbc678b6729d7774fa07ef1470f3",
+   "read": {
+    "creator": [
+     "Dr. Erika M\u00fcller <mailto:mueller@labor.example>"
+    ],
+    "date": "2026-03-12",
+    "description": "Befund des Labors, erste Seite",
+    "kind": "lab",
+    "language": [
+     "de"
+    ],
+    "title": "Laborbefund"
+   },
+   "twice": "0305bae3cd50c582bc42d25879138feb6265f854362678ac0f8bd0085c06fc62",
+   "written": [
+    "xmp",
+    "exif"
+   ]
+  },
+  "heic-open": {
+   "ending": "heic",
+   "input": "392c551ce2a610bbe329238077d6ac4c17c5b57e4773dc70658084106dc084be",
+   "once": "a53383c56ea3f5d038c9745be4e681a26334b914bbcdfe906c92656e88474c92",
+   "read": {
+    "creator": [
+     "Dr. Erika M\u00fcller <mailto:mueller@labor.example>"
+    ],
+    "date": "2026-03-12",
+    "description": "Befund des Labors, erste Seite",
+    "kind": "lab",
+    "language": [
+     "de"
+    ],
+    "title": "Laborbefund"
+   },
+   "twice": "f657c162b0caf74adf8f811c240342780005053d72c2a8bd4d4324ff4fa017a3",
+   "written": [
+    "xmp",
+    "exif"
+   ]
+  },
+  "heic-plain": {
+   "ending": "heic",
+   "input": "90c9067d573ed675a37889097e91db6c725606db503671e0ea5ff26838cfa3ee",
+   "once": "8e4a34127b0880a81ddf2f588775ba70a8e953e9528d36f9c0c1a06bd3e08aa3",
+   "read": {
+    "creator": [
+     "Dr. Erika M\u00fcller <mailto:mueller@labor.example>"
+    ],
+    "date": "2026-03-12",
+    "description": "Befund des Labors, erste Seite",
+    "kind": "lab",
+    "language": [
+     "de"
+    ],
+    "title": "Laborbefund"
+   },
+   "twice": "9415b735f552979f071204a43fc3e973e18a9d7b59fd64e367ff694e4b076766",
+   "written": [
+    "xmp",
+    "exif"
+   ]
+  },
+  "heic-v1": {
+   "ending": "heic",
+   "input": "8b86a9529bb42968dae46be973a37355c677c518c41ae53697b88d7cfc883fd2",
+   "once": "700619fdc6ecc59e7ec44196731d7dd4e70bfc2cf86ca11305eb65d1f0e21cda",
+   "read": {
+    "creator": [
+     "Dr. Erika M\u00fcller <mailto:mueller@labor.example>"
+    ],
+    "date": "2026-03-12",
+    "description": "Befund des Labors, erste Seite",
+    "kind": "lab",
+    "language": [
+     "de"
+    ],
+    "title": "Laborbefund"
+   },
+   "twice": "f1d16a7465d09a8acbf4973c3093fab9b961b85fd17a0e77ddeb3c3839a589ce",
+   "written": [
+    "xmp",
+    "exif"
+   ]
+  },
+  "heic-v2-8": {
+   "ending": "heic",
+   "input": "919ad256541ef4580863a948ff27a11e831a504ed6fa96e72b7acc0d7f73c40c",
+   "once": "9863df81f50cd277e2bd5e53eee2671a38e8f6bd558eb36cf2a45c3a87745abe",
+   "read": {
+    "creator": [
+     "Dr. Erika M\u00fcller <mailto:mueller@labor.example>"
+    ],
+    "date": "2026-03-12",
+    "description": "Befund des Labors, erste Seite",
+    "kind": "lab",
+    "language": [
+     "de"
+    ],
+    "title": "Laborbefund"
+   },
+   "twice": "0262a509702726c247c663ef474a9f13ea0c679cab8c06462fd4ed72299aa574",
+   "written": [
+    "xmp",
+    "exif"
+   ]
+  },
+  "jpg-exif": {
+   "ending": "jpg",
+   "input": "b3cc4f840f85e4aa22f7ba630625a4905feb70d39d6084ed07812e2caedc7dd1",
+   "once": "d8160080714f130314971b0e2931e3e17999fc5887e17fbfa27adf14af15e362",
+   "read": {
+    "creator": [
+     "Dr. Erika M\u00fcller <mailto:mueller@labor.example>"
+    ],
+    "date": "2026-03-12",
+    "description": "Befund des Labors, erste Seite",
+    "kind": "lab",
+    "language": [
+     "de"
+    ],
+    "title": "Laborbefund"
+   },
+   "twice": "f28a1802ae668d3c0df2b0c3abb6ae0223f750bb93c6d118ef5c7eb847314a62",
+   "written": [
+    "xmp",
+    "exif"
+   ]
+  },
+  "jpg-plain": {
+   "ending": "jpg",
+   "input": "966420bf6c694db41dcce54fb350c9be9910b5bbb8ba3d5bb107e32f7458a785",
+   "once": "3e2d2ad3ac5236827b0768e7fb58548d2a110f880c41d22a9cd89b4686f745d4",
+   "read": {
+    "creator": [
+     "Dr. Erika M\u00fcller <mailto:mueller@labor.example>"
+    ],
+    "date": "2026-03-12",
+    "description": "Befund des Labors, erste Seite",
+    "kind": "lab",
+    "language": [
+     "de"
+    ],
+    "title": "Laborbefund"
+   },
+   "twice": "467bb1eb2b7066bc95ee364055483aab0ef557ceca57747622e169e599662a88",
+   "written": [
+    "xmp",
+    "exif"
+   ]
+  },
+  "png-exif": {
+   "ending": "png",
+   "input": "0cb42e575bd270d64a9ec15ff4cd70a8c644113a974dd4c2495566a0f2179eec",
+   "once": "64f654099a44063d8921f5455e6135074aa39470a0137801abb19c318426285e",
+   "read": {
+    "creator": [
+     "Dr. Erika M\u00fcller <mailto:mueller@labor.example>"
+    ],
+    "date": "2026-03-12",
+    "description": "Befund des Labors, erste Seite",
+    "kind": "lab",
+    "language": [
+     "de"
+    ],
+    "title": "Laborbefund"
+   },
+   "twice": "99d8e7369f4adba179c392cd0ceed23dff29d19230a4c1a6d7cc3c3dbabc5c12",
+   "written": [
+    "xmp",
+    "exif"
+   ]
+  },
+  "png-plain": {
+   "ending": "png",
+   "input": "9f3e4bbea2cbd2f1664145100c8f26c10d68b0df56f3ca2741e15b6cba585cd9",
+   "once": "b5f64f9b8d43fa5a81bd759cbecbede4200501f9280b2a4b75afb579f8804aac",
+   "read": {
+    "creator": [
+     "Dr. Erika M\u00fcller <mailto:mueller@labor.example>"
+    ],
+    "date": "2026-03-12",
+    "description": "Befund des Labors, erste Seite",
+    "kind": "lab",
+    "language": [
+     "de"
+    ],
+    "title": "Laborbefund"
+   },
+   "twice": "4e0c51e4cde50d3bda58da87f225445f3227f0e03f33ce14649da08e88c7e24d",
+   "written": [
+    "xmp",
+    "exif"
+   ]
+  },
+  "tiff-exif": {
+   "ending": "tiff",
+   "input": "0c93a17c98d8482f786d65f55e61c64ff221ecb8acfe878f50f675cce3559f4d",
+   "once": "4015e2ef3fce8f52884436328f29c68d08b6be0802c70e12371e26574b2785e4",
+   "read": {
+    "creator": [
+     "Dr. Erika M\u00fcller <mailto:mueller@labor.example>"
+    ],
+    "date": "2026-03-12",
+    "description": "Befund des Labors, erste Seite",
+    "kind": "lab",
+    "language": [
+     "de"
+    ],
+    "title": "Laborbefund"
+   },
+   "twice": "7f815f7f1a467ffeeffaa25b61b97a68e9735c21ec2271ec5051cc111e1715d6",
+   "written": [
+    "xmp",
+    "exif"
+   ]
+  },
+  "tiff-plain": {
+   "ending": "tiff",
+   "input": "307e4de41411b4f675ccfb0cb65d8cc42fdd587f3c7c22e0ade1298ab5c8eece",
+   "once": "69ba08bea259087f209809d51b1cb3d4bb713f6441e3743e8ee05d806becf8ec",
+   "read": {
+    "creator": [
+     "Dr. Erika M\u00fcller <mailto:mueller@labor.example>"
+    ],
+    "date": "2026-03-12",
+    "description": "Befund des Labors, erste Seite",
+    "kind": "lab",
+    "language": [
+     "de"
+    ],
+    "title": "Laborbefund"
+   },
+   "twice": "ad01b3224b450cb340fcc7991fafb0eca3a332036623775155d5e7e52b27b1c8",
+   "written": [
+    "xmp",
+    "exif"
+   ]
+  },
+  "webp-exif": {
+   "ending": "webp",
+   "input": "cd674386d34737441bd1818a8b65cedf775d7615adfe5d86a71301ad2917b1c2",
+   "once": "534938ef346fec1a23ce29b65ffaf90fcabf175d3c6822b93a5bb93b3348a6d1",
+   "read": {
+    "creator": [
+     "Dr. Erika M\u00fcller <mailto:mueller@labor.example>"
+    ],
+    "date": "2026-03-12",
+    "description": "Befund des Labors, erste Seite",
+    "kind": "lab",
+    "language": [
+     "de"
+    ],
+    "title": "Laborbefund"
+   },
+   "twice": "cc15e02c7e9fffb2505f751efd046e23c28cd3fd13a95ed780502fce539c2a49",
+   "written": [
+    "xmp",
+    "exif"
+   ]
+  },
+  "webp-plain": {
+   "ending": "webp",
+   "input": "e5c4caa7939040d6255c7461786770ccf2d81da15ef94ed16b0cc7ae050659d5",
+   "once": "5ed349e467e50b7e5b71778b31073c4ce9dbc255e8ff401bf089e699d159ce12",
+   "read": {
+    "creator": [
+     "Dr. Erika M\u00fcller <mailto:mueller@labor.example>"
+    ],
+    "date": "2026-03-12",
+    "description": "Befund des Labors, erste Seite",
+    "kind": "lab",
+    "language": [
+     "de"
+    ],
+    "title": "Laborbefund"
+   },
+   "twice": "2e5d9eb8b4abd80c5f75b20dbb195654e2fecb521458751c0cf5f68fe1ab3211",
+   "written": [
+    "xmp",
+    "exif"
+   ]
+  },
+  "webp-simple": {
+   "ending": "webp",
+   "input": "8837d1695d83bb45686c593d5c5f849c87e1bfa397d481e25c4a443eca0b6a70",
+   "once": "6b0381d8ec785d8cce1b1f73b0d7620f061f79f595390b448cb02c0abee08b8c",
+   "read": {
+    "creator": [
+     "Dr. Erika M\u00fcller <mailto:mueller@labor.example>"
+    ],
+    "date": "2026-03-12",
+    "description": "Befund des Labors, erste Seite",
+    "kind": "lab",
+    "language": [
+     "de"
+    ],
+    "title": "Laborbefund"
+   },
+   "twice": "a3001e28aa3f3c20c88e483cd58fbdff5bb0c00f4aa5d93a656e999ad96f9ae9",
+   "written": [
+    "xmp",
+    "exif"
+   ]
+  }
+ }
+}

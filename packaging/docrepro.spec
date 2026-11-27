@@ -13,6 +13,7 @@ Developer ID for macOS; without it the build is signed ad hoc), ``DOCREPRO_ONEDI
 folder of that name, with the program ``docrepro`` in it, instead of one file).
 """
 
+import importlib.util
 import os
 import sys
 from pathlib import Path
@@ -46,10 +47,18 @@ for tool in TOOLS:
 datas += copy_metadata("tagdoc")
 datas += copy_metadata("typdoc")
 # packages compiled with mypyc (playa) import a helper module with a hashed name that
-# PyInstaller does not see
-for path in sys.path:
-    if Path(path).is_dir():
-        hiddenimports += sorted({f.name.split(".")[0] for f in Path(path).glob("*__mypyc*")})
+# PyInstaller does not see: the one each of them names, and no other (mypy, a tool of the
+# tests where it is installed, has a helper of its own, 40 MB)
+COMPILED = ("playa",)
+helpers = {f.name.split(".")[0]: f for path in sys.path if Path(path).is_dir()
+           for f in Path(path).glob("*__mypyc*")}
+for package in COMPILED:
+    found = importlib.util.find_spec(package)
+    if found is None or found.origin is None:
+        continue
+    compiled = [so.read_bytes() for so in Path(found.origin).parent.rglob("*.so")]
+    hiddenimports += sorted(name for name in helpers
+                            if any(name.encode() in data for data in compiled))
 hiddenimports += ["pillow_heif", "PIL.Image", "PIL.ImageFilter", "PIL.ImageOps", "cv2",
                   "zxingcpp", "shapely", "pyclipper", "omegaconf", "colorlog", "yaml"]
 # RapidOCR's other inference engines and what the tools never use

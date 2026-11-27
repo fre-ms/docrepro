@@ -34,10 +34,15 @@ def _write(project: Project, folder: Path) -> dict[str, bytes]:
     return {k: paths[k].read_bytes() for k in FILES}
 
 
-def _prepared(source: Path, target: Path, frames: list[str]) -> Path:
+ORIGINAL = "ab" * 32  # the SHA-256 of the original optdoc prepared, as its document names it
+
+
+def _prepared(source: Path, target: Path, frames: list[str], original: str = ORIGINAL) -> Path:
     """``source`` as optdoc would hand it on: carrying a configuration document of its
-    own whose pages have the ``frames`` given."""
-    upstream = {"format": "optdoc-config", "version": 2,
+    own whose pages have the ``frames`` given, and came from the pages of ``original``."""
+    upstream = {"format": "optdoc-config", "version": 4,
+                "input": {"pages": [{"origin": {"sha256": original, "index": n}}
+                                    for n in range(len(frames))]},
                 "pages": [{"page": n + 1, "frame": f} for n, f in enumerate(frames)]}
     with pymupdf.open(source) as doc:
         documents.embed(doc, "optdoc.json", documents.document_bytes(upstream), "optdoc")
@@ -185,9 +190,29 @@ def test_a_changed_input_keeps_what_a_person_decided(tmp_path: Path, report: Pat
         assert again.pages[1].correction is None and not again.regions_by_person(1)
     finally:
         again.close()
-    plain = scan(report, tmp_path / "plain.pdf", noise=0.004)  # no frames: no rebasing
+    plain = scan(report, tmp_path / "plain.pdf", noise=0.004)  # a scan of its own
     with pytest.raises(OcrdocError) as caught:
         Project.open(plain, config=config)
+    assert caught.value.kind == "config-mismatch"
+
+
+@needs_backend
+def test_two_letters_never_share_decisions(tmp_path: Path, report: Path) -> None:
+    """Two letters of the same size that optdoc left lying as they came have the same
+    frames; they come from two originals, so what a person decided in one never goes into
+    the other: another document."""
+    letter = _prepared(scan(report, tmp_path / "a.pdf"), tmp_path / "erika.pdf", ["a", "b"],
+                       original="e1" * 32)
+    project = Project.open(letter)
+    try:
+        project.set_correction(0, project.text(0) + "\nNachtrag zu Erika Beispiel")
+        config = project.config()
+    finally:
+        project.close()
+    other = _prepared(scan(report, tmp_path / "b.pdf", noise=0.004), tmp_path / "max.pdf",
+                      ["a", "b"], original="aa" * 32)
+    with pytest.raises(OcrdocError) as caught:
+        Project.open(other, config=config)
     assert caught.value.kind == "config-mismatch"
 
 

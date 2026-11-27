@@ -16,20 +16,20 @@ The PDF has no date and no identifier, so the same pictures in the same order gi
 here and in medRDS's reference library; the tests let that library bind the same pictures and
 compare.
 
-typdoc is one tool of [docrepro](https://github.com/fre-ms/docrepro), one tool for one step, each
+typdoc is one tool of [docrepro](../../README.md), one tool for one step, each
 usable on its own:
 
 | order | tool | its step |
 |---|---|---|
 | 5 | **typdoc** | changes the type: binds pictures into a PDF |
-| 10 | [optdoc](https://github.com/fre-ms/optdoc) | makes the page faithful |
-| 20 | [ocrdoc](https://github.com/fre-ms/ocrdoc) | recognises areas, text, tables and barcodes |
-| 40 | [tagdoc](https://github.com/fre-ms/tagdoc) | describes the document |
+| 10 | [optdoc](../optdoc) | makes the page faithful |
+| 20 | [ocrdoc](../ocrdoc) | recognises areas, text, tables and barcodes |
+| 40 | [tagdoc](../tagdoc) | describes the document |
 
 **No step forces a file type.** PDF is the rule, since one file then holds the pages, their text,
 a description and a signature; it is not a condition. typdoc is the one step that changes a
 document's type, and it is optional: the steps after it take what they are handed, typdoc's PDF or
-the picture as it came. Why the work is divided so: `docs/family-design.md` in optdoc.
+the picture as it came. Why the work is divided so: [docs/family-design.md](../../docs/family-design.md) of docrepro.
 
 **Status: pre-alpha (0.3.0).**
 
@@ -38,8 +38,8 @@ the picture as it came. Why the work is divided so: `docs/family-design.md` in o
 Python 3.12 or later, with [uv](https://docs.astral.sh/uv/):
 
 ```
-git clone https://github.com/fre-ms/typdoc
-cd typdoc
+git clone https://github.com/fre-ms/docrepro
+cd docrepro/packages/typdoc
 uv sync
 ```
 

@@ -13,15 +13,6 @@ from doccor.gui import words as _words
 from doccor.gui.words import LANGUAGES, Words, system_language
 
 WORDS: dict[str, tuple[str, str]] = {  # key: (English, German)
-    "title": ("{tool}: {name}", "{tool}: {name}"),
-    "page": ("Page {number}", "Seite {number}"),
-    "apply": ("Apply", "Übernehmen"),
-    "later": ("Save and continue later", "Speichern und später weitermachen"),
-    "cancel": ("Cancel", "Abbrechen"),
-    "discard_title": ("Discard the work?", "Arbeit verwerfen?"),
-    "discard_text": ("Nothing will be written. Discard what was done in this window?",
-                     "Es wird nichts geschrieben. Das in diesem Fenster Getane verwerfen?"),
-    "failed": ("That did not work: {error}", "Das ging nicht: {error}"),
     "colour_pages": ("Pages in colour as", "Farbseiten als"),
     "colour_jpeg": ("JPEG (small)", "JPEG (klein)"),
     "colour_png": ("PNG (lossless)", "PNG (verlustfrei)"),

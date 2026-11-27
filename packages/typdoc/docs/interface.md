@@ -139,4 +139,4 @@ The same kinds and wording are there for programs that use typdoc as a Python li
 ## Licence
 
 typdoc is free software under the GNU Affero General Public License 3.0 or later; its source is at
-https://github.com/fre-ms/typdoc.
+https://github.com/fre-ms/docrepro (folder `packages/typdoc`).

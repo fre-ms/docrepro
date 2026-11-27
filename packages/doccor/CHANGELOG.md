@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.4.0 (2026-11-27)
+
+### Added
+
+- **Where the pages of a file came from** (`doccor.origins`): for every page, the original file
+  it shows (by its SHA-256) and which of that file's pages it is. A picture is its own original;
+  a page of a PDF is the file it names as its source (`/AF`, `/AFRelationship /Source`, as
+  medRDS 9.5 binds a picture that is no JPEG), else the JPEG it is and nothing else (as medRDS
+  9.5 binds a JPEG), else the PDF and the page's number. A picture and the PDF typdoc bound it
+  into have the same origins; two letters of the same size never do. optdoc and ocrdoc keep a
+  person's decisions on another file by it.
+- **The words of every window's frame** (`doccor.gui.words.FRAME`): its title, its pages, the
+  three ways out, the question before work is discarded, a failure. optdoc, ocrdoc and tagdoc
+  each had them; docrepro's window needs them without opening a step.
+
+### Changed
+
+- doccor is a package of docrepro's repository (`packages/doccor`), beside the tools that share
+  it; its history came along.
+
 ## 0.3.0 (2026-11-27)
 
 ### Added

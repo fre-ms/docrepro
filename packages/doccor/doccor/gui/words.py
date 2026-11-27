@@ -1,8 +1,10 @@
 """Words a window shows, in English and German.
 
 A window takes the language of the application that opens it (``--language``), else that
-of the system.  Every tool registers its own words (:func:`register`); a key registered
-twice must mean the same both times.
+of the system.  The words every window of the tools shares, its frame (its title, its
+pages, the three ways out, the question before work is discarded, a failure), are here,
+once (:data:`FRAME`); every tool registers its own besides (:func:`register`), and a key
+registered twice must mean the same both times.
 """
 
 from __future__ import annotations
@@ -13,6 +15,18 @@ from collections.abc import Mapping
 
 LANGUAGES = ("en", "de")
 WORDS: dict[str, tuple[str, str]] = {}  # key: (English, German), every tool's
+FRAME: dict[str, tuple[str, str]] = {  # the words of every window of the tools: its frame
+    "title": ("{tool}: {name}", "{tool}: {name}"),
+    "page": ("Page {number}", "Seite {number}"),
+    "page_corrected": ("Page {number} ✎", "Seite {number} ✎"),
+    "apply": ("Apply", "Übernehmen"),
+    "later": ("Save and continue later", "Speichern und später weitermachen"),
+    "cancel": ("Cancel", "Abbrechen"),
+    "discard_title": ("Discard the work?", "Arbeit verwerfen?"),
+    "discard_text": ("Nothing will be written. Discard what was done in this window?",
+                     "Es wird nichts geschrieben. Das in diesem Fenster Getane verwerfen?"),
+    "failed": ("That did not work: {error}", "Das ging nicht: {error}"),
+}
 
 
 def register(words: Mapping[str, tuple[str, str]]) -> None:
@@ -43,3 +57,6 @@ class Words:
         """The word ``key`` in this language, its placeholders filled in."""
         english, german = WORDS[key]
         return (german if self.language == "de" else english).format(**values)
+
+
+register(FRAME)

@@ -12,20 +12,20 @@ real digital documents, one tool for one step:
 
 | tool | its step |
 |---|---|
-| [typdoc](https://github.com/fre-ms/typdoc) | changes the type, and nothing else: binds pictures into one PDF |
+| [typdoc](../typdoc) | changes the type, and nothing else: binds pictures into one PDF |
 | **optdoc** | makes the page faithful: upright, unwarped, in its true proportions, evenly lit, in its own colours |
-| [ocrdoc](https://github.com/fre-ms/ocrdoc) | recognises: areas, text, tables, barcodes; lays the text over the page |
-| [tagdoc](https://github.com/fre-ms/tagdoc) | describes the document as the standard medRDS says |
+| [ocrdoc](../ocrdoc) | recognises: areas, text, tables, barcodes; lays the text over the page |
+| [tagdoc](../tagdoc) | describes the document as the standard medRDS says |
 
 No step forces a file type. PDF is the rule, and typdoc is the one step that makes a PDF of a picture;
 optdoc takes what it is handed and gives the same kind back.
-[docrepro](https://github.com/fre-ms/docrepro) joins the steps in one chain, one window and one program.
+[docrepro](../../README.md) joins the steps in one chain, one window and one program.
 
 What they share (configuration documents, the command line's manners, no network, the window's
-building blocks) is [doccor](https://github.com/fre-ms/doccor)'s. [docs/family-design.md](docs/family-design.md)
+building blocks) is [doccor](../doccor)'s. [docs/family-design.md](../../docs/family-design.md)
 describes the family and why it is divided so.
 
-**Status: pre-alpha (0.11.0).** The code comes from PseudonyMed, with its history. Up to 0.6.0 optdoc
+**Status: pre-alpha (0.12.0).** The code comes from PseudonyMed, with its history. Up to 0.6.0 optdoc
 also read the pages (OCR, areas, tables, a searchable PDF); that is ocrdoc now, which came out of optdoc
 with its history. `CHANGELOG.md` lists the changes.
 
@@ -37,10 +37,13 @@ else (no paths, no times). **The same file with the same document gives the same
 The window saves the document and opens it again where the person stopped.
 
 Every page also has a **frame**: a fingerprint of where things lie on the prepared page (its size, and
-the turning, unwarping and straightening that made it). ocrdoc, which reads optdoc's PDF, keeps what a
-person decided there (areas drawn, a table's grid, corrected text) as long as the frame stays the same,
-so a later change in optdoc that does not move the page (more contrast) costs no work in ocrdoc. An
-original with both configuration documents gives every file of both steps again.
+the turning, unwarping and straightening that made it; none where nothing moves the page), and an
+**origin**: the original file it shows and which of its pages it is. ocrdoc, which reads optdoc's PDF,
+keeps what a person decided there (areas drawn, a table's grid, corrected text) as long as the page
+comes from the same place and its frame stays the same, so a later change in optdoc that does not move
+the page (more contrast) costs no work in ocrdoc. By the origins optdoc also takes a document made on a
+picture for the PDF typdoc bound it into, and the other way round. An original with both configuration
+documents gives every file of both steps again.
 
 ## What it does
 
@@ -85,14 +88,14 @@ the turns. The tests guard the unwarping at a slant and that a red stamp stays r
 Python 3.12 or later, with [uv](https://docs.astral.sh/uv/):
 
 ```
-git clone https://github.com/fre-ms/optdoc
-cd optdoc
+git clone https://github.com/fre-ms/docrepro
+cd docrepro/packages/optdoc
 uv sync --extra cleanup --extra gui
 ```
 
 The `cleanup` extra brings OpenCV, NumPy, Pillow and HEIC support; the `gui` extra PySide6 (Qt, LGPL 3.0)
 for the window. A page that stands on its head is told by the orientation model, where it was fetched
-(below), or in the window by reading the page, where [ocrdoc](https://github.com/fre-ms/ocrdoc) is installed
+(below), or in the window by reading the page, where [ocrdoc](../ocrdoc) is installed
 beside optdoc.
 
 ## Command line

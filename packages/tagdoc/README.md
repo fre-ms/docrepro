@@ -14,12 +14,12 @@ each format has for a description, and BMP and PNM pictures beside them; a pictu
 own data are never touched.
 
 It is step 40 of **docrepro**, a family of tools that reproduce photographed and scanned documents as real
-digital documents, one tool for one step: [typdoc](https://github.com/fre-ms/typdoc) changes the type
-(binds pictures into a PDF), [optdoc](https://github.com/fre-ms/optdoc) makes the page faithful,
-[ocrdoc](https://github.com/fre-ms/ocrdoc) recognises what is on it, tagdoc describes it. It works on any
+digital documents, one tool for one step: [typdoc](../typdoc) changes the type
+(binds pictures into a PDF), [optdoc](../optdoc) makes the page faithful,
+[ocrdoc](../ocrdoc) recognises what is on it, tagdoc describes it. It works on any
 PDF and any picture on its own as well.
 
-**Status: pre-alpha (0.4.0).**
+**Status: pre-alpha (0.4.1).**
 
 ## What tagdoc writes, and what it leaves to the records app
 

@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.11.0 (2026-11-27)
+
+The tools of docrepro live in one repository now, each a package of its own; the window goes
+through the steps as the chain does, naming none. Interface 7; `docrepro-chain` version 3 stays.
+
+### Changed
+
+- **One repository, six packages** (the user, 27 November 2026): doccor, typdoc, optdoc, ocrdoc
+  and tagdoc are in `packages/<tool>`, with their histories, beside docrepro; a uv workspace,
+  one lock file, one CI that tests every package on every platform, and one tag for a state of
+  them all. Each package keeps its version, command line, interface and tests, and is used on its
+  own as before; a version changes with its package only, so that a tool that did not change
+  writes the same bytes. Their old repositories keep their tags.
+- **What a person decided stays with the page, wherever the page goes** (optdoc 0.12.0, ocrdoc
+  0.5.0): every page knows its origin (doccor 0.4.0). Switching typdoc keeps what a person decided
+  in optdoc and in ocrdoc, with optdoc in use or not; switching optdoc off keeps ocrdoc's where
+  optdoc had not moved the page. A chain document of another document is refused page by page
+  where before frames alone decided: two letters of the same size never share a correction.
+- **The window names no step.** It opens a step when its tab is first shown, on what the steps in
+  use before it give then, and again whenever that changed, with what the step held; the step's
+  own rule decides what stays, and the status line says what became of a person's decisions in
+  every step it opened anew. A step brings its tabs and panels through its adapter (`tabs`,
+  `panels`; `corrected` for the marks on the pages), tagdoc's too. What the window hands back is
+  every step's document as it stands; the chain brings over by the same rule what the window did
+  not open again.
+
+- **The standalone program carries only the mypyc helper playa names** (it took every one it
+  found, and with mypy installed for the tests that was 40 MB more); the CI builds it without the
+  tools of the tests. 163 MB as before.
+
+### Removed
+
+- Chain documents whose steps' documents are of the versions before (`optdoc-config` 3,
+  `ocrdoc-config` 1) are no longer read; make the result again with the docrepro that wrote them.
+
 ## 0.10.0 (2026-11-27)
 
 docrepro brings a document as near to its original as it can, and goes no further (the user, 27

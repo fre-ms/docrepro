@@ -101,7 +101,7 @@ def test_a_picture_comes_back_in_its_own_type(tmp_path: Path, report: Path,
         corner = out.convert("RGB").getpixel((12, 12))
         assert min(corner) > 215  # paper, not the dark desk
     config = load_config(first["config"])
-    assert config["version"] == 3 and config["input"]["suffix"] == f".{ending}"
+    assert config["version"] == 4 and config["input"]["suffix"] == f".{ending}"
     assert config["pages"][0]["plan"]["unwarp"] is True
     assert "paper" not in config["options"]
     again = _prepared(photo, tmp_path / "b", config=config)

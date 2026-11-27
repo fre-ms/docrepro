@@ -146,7 +146,7 @@ def test_several_pictures_on_the_command_line(tmp_path: Path, report: Path,
     second = photo_of(report, tmp_path / "zwei.jpg", rotation=-1.0)
     status, answer, _ = _answer(capsys, ["run", str(first), str(second), "--out",
                                          str(tmp_path / "out"), "--reader", "none"])
-    assert status == 0 and answer["pages"] == 2 and answer["interface"] == INTERFACE == 6
+    assert status == 0 and answer["pages"] == 2 and answer["interface"] == INTERFACE == 7
     assert Path(answer["document"]).name == "eins.pdf"
     done = _run(["run", str(first), str(second), "--out", str(tmp_path / "each"), "--without",
                  "typdoc", "--without", "ocrdoc", "--without", "tagdoc", "--progress"])

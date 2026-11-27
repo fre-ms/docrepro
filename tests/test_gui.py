@@ -1,9 +1,9 @@
-"""The joined window, driven without a screen: optdoc's tab and ocrdoc's tabs on one
-document; after a change in optdoc, a later tab gets optdoc's new PDF, and a person's
-correction stays where the page did not move and goes where it did, with the page named
-in the status line.  The steps on the left: each can be switched off and on, the tabs of
-a step that is off are closed and marked, and beside each switch stands what became of
-the step."""
+"""The joined window, driven without a screen: every step's tabs on one document, each
+step opened when its tab is shown; after a change in optdoc, a later tab gets optdoc's new
+PDF, and a person's correction stays where the page did not move and goes where it did,
+with the page named in the status line.  The steps on the left: each can be switched off
+and on, the tabs of a step that is off are closed and marked, and beside each switch stands
+what became of the step."""
 
 from __future__ import annotations
 
@@ -46,35 +46,40 @@ def test_the_steps_joined_in_one_window(app: QApplication, tmp_path: Path, repor
             "tagdoc": "● in Gebrauch, wie vorgeschlagen"}
         assert not window.step_boxes["typdoc"].isEnabled()
         assert window.step_boxes["optdoc"].text() == "optdoc: aufbereiten"
-        window.tabs.setCurrentWidget(window.text)
-        text = window.text.text.toPlainText()
-        assert "Ramipril" in text
-        window.text.text.setPlainText(text.replace("Ramipril", "Ramipril (ACE)", 1))
-        window.tabs.setCurrentWidget(window.cleanup)  # leaving the text keeps the correction
-        assert window.read_project.corrected == [0]
+        assert window.project("ocrdoc") is None  # a step opens when its tab is first shown
+        window.tabs.setCurrentIndex(3)
+        text = window.panel("ocrdoc", 2)
+        assert window.tabs.currentWidget() is text
+        assert window.given("ocrdoc") == window.output("optdoc")
+        assert "Ramipril" in text.text.toPlainText()
+        text.text.setPlainText(text.text.toPlainText().replace("Ramipril", "Ramipril (ACE)", 1))
+        window.tabs.setCurrentIndex(0)  # leaving the text keeps the correction
+        cleanup = window.panel("optdoc")
+        assert window.project("ocrdoc").corrected == [0]
         assert window.step_states["ocrdoc"].text() == "● in Gebrauch, von Hand geändert"
-        window.cleanup.boxes["contrast"].setChecked(True)  # the page does not move
+        cleanup.boxes["contrast"].setChecked(True)  # the page does not move
         assert window.step_states["optdoc"].text() == "● in Gebrauch, von Hand geändert"
         assert window.step_states["ocrdoc"].text() == "● in Gebrauch, neu zu machen"
-        window.tabs.setCurrentWidget(window.text)
-        assert window.read_project.corrected == [0]
-        assert "Ramipril (ACE)" in window.text.text.toPlainText()
-        assert "bleibt" in window.status.text()
+        window.tabs.setCurrentIndex(3)
+        assert window.project("ocrdoc").corrected == [0]
+        assert "Ramipril (ACE)" in text.text.toPlainText()
+        assert "bleibt" in window.status.text() and "ocrdoc" in window.status.text()
         assert window.step_states["ocrdoc"].text() == "● in Gebrauch, von Hand geändert"
-        window.tabs.setCurrentWidget(window.cleanup)
-        window.cleanup.boxes["straighten"].setChecked(False)  # the page moves
-        window.tabs.setCurrentWidget(window.filters)
-        assert window.read_project.corrected == []
+        window.tabs.setCurrentIndex(0)
+        cleanup.boxes["straighten"].setChecked(False)  # the page moves
+        window.tabs.setCurrentIndex(1)
+        assert window.project("ocrdoc").corrected == []
         assert "Seite(n) 1" in window.status.text()
         window.tabs.setCurrentIndex(4)  # describe: ocrdoc's result, then tagdoc's form
-        describe = window.later_panels["tagdoc"]
+        describe = window.panel("tagdoc")
         assert window.tabs.currentWidget() is describe
+        assert window.given("tagdoc") == window.output("ocrdoc")
         describe.edits["title"].setText("Neurologischer Befund")
         describe.commit()
-        window.tabs.setCurrentWidget(window.cleanup)
-        window.cleanup.boxes["contrast"].setChecked(True)
+        window.tabs.setCurrentIndex(0)
+        cleanup.boxes["contrast"].setChecked(True)
         window.tabs.setCurrentIndex(4)  # made anew: the person's title stays
-        assert window.later_projects["tagdoc"].value("title") == "Neurologischer Befund"
+        assert window.project("tagdoc").value("title") == "Neurologischer Befund"
         configs = window.configs()
         assert set(configs) == {"optdoc", "ocrdoc", "tagdoc"}
         assert configs["optdoc"]["pages"][0]["by"] == "person"
@@ -88,28 +93,34 @@ def test_the_steps_joined_in_one_window(app: QApplication, tmp_path: Path, repor
 
 @needs_engine
 def test_steps_switched_off_and_on(app: QApplication, tmp_path: Path, report: Path) -> None:
-    """optdoc off: its tab closes, ocrdoc reads the original and starts anew; ocrdoc off:
-    its tabs close, and the description opens on what is left; everything off: nothing to
-    apply.  What the window hands back says which steps are in use, and keeps what a
-    person decided in a step that is off."""
+    """optdoc off: its tab closes, ocrdoc reads the original, and keeps a person's
+    correction, since optdoc had not moved the page; ocrdoc off: its tabs close, and the
+    description opens on what is left; everything off: nothing to apply.  What the window
+    hands back says which steps are in use, and keeps what a person decided in a step that
+    is off."""
     original = scan(report, tmp_path / "scan.pdf")
     chain = Chain.open(original)
     window = ChainWindow(chain, tmp_path / "work", Words("de"), synchronous=True)
     try:
-        window.cleanup.boxes["contrast"].setChecked(True)  # a person's plan in optdoc
-        window.tabs.setCurrentWidget(window.text)
-        assert "Ramipril" in window.text.text.toPlainText()
-        prepared = window._read_source
-        assert prepared != original and window._read_on_optdoc
+        window.panel("optdoc").boxes["contrast"].setChecked(True)  # a person's plan in optdoc
+        window.tabs.setCurrentIndex(3)
+        text = window.panel("ocrdoc", 2)
+        assert "Ramipril" in text.text.toPlainText()
+        prepared = window.given("ocrdoc")
+        assert prepared != original and prepared == window.output("optdoc")
+        text.text.setPlainText(text.text.toPlainText().replace("Ramipril", "Ramipril (ACE)", 1))
+        window.tabs.setCurrentIndex(1)  # the correction goes into ocrdoc's project
+        window.tabs.setCurrentIndex(3)
         window.step_boxes["optdoc"].setChecked(False)
         assert window.used == {"ocrdoc", "tagdoc"}
         assert window.tabs.tabText(0) == "○ 1 Aufbereiten" and not window.tabs.isTabEnabled(0)
         assert "optdoc ist ausgeschaltet" in window.tabs.tabToolTip(0)
         assert window.step_states["optdoc"].text() == "○ aus"
-        assert window._read_source == original and not window._read_on_optdoc
-        assert "beginnt neu" in window.status.text()  # what ocrdoc held was of optdoc's PDF
-        assert window.tabs.currentWidget() is window.text  # an open tab stays
-        assert "Ramipril" in window.text.text.toPlainText()  # read from the original
+        assert window.given("ocrdoc") == original
+        assert window.tabs.currentWidget() is text  # an open tab stays
+        assert window.project("ocrdoc").corrected == [0]  # the page lies as it lay
+        assert "bleibt" in window.status.text()
+        assert "Ramipril (ACE)" in text.text.toPlainText()
         configs = window.configs()
         assert configs["optdoc"]["pages"][0]["by"] == "person"  # kept for later
         assert configs["ocrdoc"]["input"]["sha256"] == chain.named[0]["sha256"]
@@ -117,19 +128,19 @@ def test_steps_switched_off_and_on(app: QApplication, tmp_path: Path, report: Pa
         assert window.used == {"tagdoc"}
         assert [window.tabs.isTabEnabled(i) for i in range(5)] == [False] * 4 + [True]
         assert window.tabs.currentIndex() == 4  # the tab that closed is left
-        assert window.later_projects["tagdoc"] is not None  # described: the original
+        assert window.given("tagdoc") == original  # described: the original
         assert window.step_states["ocrdoc"].text() == "○ aus"
         window.step_boxes["tagdoc"].setChecked(False)
         assert window.used == set() and not window.apply_button.isEnabled()
         assert "nichts zu tun" in window.status.text()
         window.step_boxes["optdoc"].setChecked(True)
         assert window.used == {"optdoc"} and window.apply_button.isEnabled()
-        assert window.tabs.currentWidget() is window.cleanup
+        assert window.tabs.currentWidget() is window.panel("optdoc")
         assert window.step_states["optdoc"].text() == "● in Gebrauch, von Hand geändert"
         window.step_boxes["tagdoc"].setChecked(True)
         assert window.step_states["tagdoc"].text() == "● in Gebrauch, neu zu machen"
         window.tabs.setCurrentIndex(4)  # described anew: optdoc's PDF now
-        assert window._read_on_optdoc
+        assert window.given("tagdoc") == window.output("optdoc")
         assert window.step_states["tagdoc"].text() == "● in Gebrauch, wie vorgeschlagen"
         chain.used = set(window.used)
         answer = chain.run(tmp_path / "out", configs=window.configs())
@@ -144,8 +155,9 @@ def test_steps_switched_off_and_on(app: QApplication, tmp_path: Path, report: Pa
 def test_a_picture_in_the_window(app: QApplication, tmp_path: Path, report: Path) -> None:
     """For a picture typdoc is on unless the person switches it off.  On, the picture goes
     on as a PDF.  Off, it stays a picture through every step in the window too: optdoc is
-    handed the picture itself (and starts anew on it), ocrdoc reads optdoc's picture,
-    tagdoc describes it; and the chain makes the picture from what the window holds."""
+    handed the picture itself, ocrdoc reads optdoc's picture, tagdoc describes it; every
+    page is the same page either way, so what a person decided in optdoc and in ocrdoc
+    stays; and the chain makes the picture from what the window holds."""
     from tests.synthetic import photo_of
 
     photo = photo_of(report, tmp_path / "foto.jpg")
@@ -157,43 +169,45 @@ def test_a_picture_in_the_window(app: QApplication, tmp_path: Path, report: Path
         assert window.step_boxes["typdoc"].isChecked() and window.step_boxes["typdoc"].isEnabled()
         assert window.step_states["typdoc"].text() == "● in use, as suggested"
         assert window.tabs.tabText(4) == "○ 5 Describe" and not window.tabs.isTabEnabled(4)
-        bound = window._origin  # ocrdoc reads typdoc's PDF: the photo is in it as it came
-        assert bound.suffix == ".pdf" and window._read_source == bound
+        assert window.tabs.currentIndex() == 1  # optdoc is off: ocrdoc's first tab
+        bound = window.given("ocrdoc")  # ocrdoc reads typdoc's PDF: the photo is in it as it came
+        assert bound == window.output("typdoc") and bound.suffix == ".pdf"
         assert photo.read_bytes() in bound.read_bytes()
         window.step_boxes["optdoc"].setChecked(True)  # optdoc prepares typdoc's PDF
-        assert window.prepared_project.config()["input"]["suffix"] == ".pdf"
-        window.tabs.setCurrentWidget(window.filters)
-        assert window._read_on_optdoc and window._read_source.suffix == ".pdf"
+        assert window.project("optdoc").config()["input"]["suffix"] == ".pdf"
+        assert window.given("ocrdoc") == window.output("optdoc")
+        assert window.given("ocrdoc").suffix == ".pdf"
         # a person's work in optdoc and in ocrdoc, on typdoc's PDF
         from ocrdoc import layout
         from optdoc import cleanup
 
         planned = cleanup.CleanupPlan.from_dict({
-            **window.prepared_project.plan(0).full_dict(), "contrast": True,
+            **window.project("optdoc").plan(0).full_dict(), "contrast": True,
             "contrast_strength": 4})
-        window.prepared_project.set_plan(0, planned)
+        window.project("optdoc").set_plan(0, planned)
         window._worked_in("optdoc", 0)
-        window.tabs.setCurrentWidget(window.areas)
+        window.tabs.setCurrentIndex(2)
         drawn = layout.Region("ignore", (60.0, 700.0, 300.0, 760.0))
-        window.read_project.set_regions(0, [drawn])
+        window.project("ocrdoc").set_regions(0, [drawn])
         # typdoc off: optdoc is handed the picture, and every step after it a picture;
         # it shows the same pages, so what the person did stays in both steps
         window.step_boxes["typdoc"].setChecked(False)
-        assert window.used == {"optdoc", "ocrdoc"} and window._origin == photo
+        assert window.used == {"optdoc", "ocrdoc"} and window.given("optdoc") == photo
         assert window.step_states["typdoc"].text() == "○ off"
-        assert window.prepared_project.config()["input"]["suffix"] == ".jpg"
-        assert window.prepared_project.rebased  # optdoc took the plan along: nothing went
-        assert window.status.text() == window.w("kept_decisions")
-        assert window.prepared_project.plan(0).full_dict() == planned.full_dict()
-        window.tabs.setCurrentWidget(window.areas)
-        assert window.read_project.picture and window.read_project.dropped == []
-        assert window.read_project.regions(0) == [layout.rounded(drawn)]
-        assert window.cleanup.project is window.prepared_project
-        window.tabs.setCurrentWidget(window.filters)
-        assert window._read_source.suffix == ".jpg" and window.read_project.picture
+        assert window.project("optdoc").config()["input"]["suffix"] == ".jpg"
+        assert window.project("optdoc").rebased  # optdoc took the plan along: nothing went
+        for step in ("optdoc", "ocrdoc"):
+            assert window.w("kept_decisions", step=step) in window.status.text()
+        assert window.project("optdoc").plan(0).full_dict() == planned.full_dict()
+        assert window.project("ocrdoc").picture and window.project("ocrdoc").dropped == []
+        assert window.project("ocrdoc").regions(0) == [layout.rounded(drawn)]
+        window.tabs.setCurrentIndex(0)
+        assert window.panel("optdoc").project is window.project("optdoc")
+        window.tabs.setCurrentIndex(1)
+        assert window.given("ocrdoc").suffix == ".jpg" and window.project("ocrdoc").picture
         window.step_boxes["tagdoc"].setChecked(True)
         window.tabs.setCurrentIndex(4)
-        assert window.later_projects["tagdoc"].picture
+        assert window.project("tagdoc").picture
         configs = window.configs()
         assert "typdoc" not in configs and configs["tagdoc"]["input"]["suffix"] == ".jpg"
         chain.used = set(window.used)
@@ -204,8 +218,8 @@ def test_a_picture_in_the_window(app: QApplication, tmp_path: Path, report: Path
         assert b"<x:xmpmeta" in Path(answer["document"]).read_bytes()
         # back on: a PDF again
         window.step_boxes["typdoc"].setChecked(True)
-        assert window._origin.suffix == ".pdf"
-        assert window.prepared_project.config()["input"]["suffix"] == ".pdf"
+        assert window.given("optdoc").suffix == ".pdf"
+        assert window.project("optdoc").config()["input"]["suffix"] == ".pdf"
     finally:
         window.outcome = "cancelled"
         window.close()
@@ -214,9 +228,9 @@ def test_a_picture_in_the_window(app: QApplication, tmp_path: Path, report: Path
     kept = Chain.open(photo, without=("typdoc", "ocrdoc", "tagdoc"))
     window = ChainWindow(kept, tmp_path / "work2", Words("de"), synchronous=True)
     try:
-        assert window.used == {"optdoc"} and window._origin == photo
+        assert window.used == {"optdoc"} and window.given("optdoc") == photo
         assert window.step_states["typdoc"].text() == "○ aus"
-        assert window.prepared_project.picture
+        assert window.project("optdoc").picture
     finally:
         window.outcome = "cancelled"
         window.close()
@@ -235,7 +249,7 @@ def test_several_pictures_in_the_window(app: QApplication, tmp_path: Path, repor
         assert window.several and "typdoc" in window.used
         assert not window.step_boxes["typdoc"].isEnabled()
         assert "2 Bilder: nur gebunden ein Dokument" in window.step_states["typdoc"].text()
-        assert window._origin.suffix == ".pdf" and len(window.prepared_project.pages) == 2
+        assert window.given("optdoc").suffix == ".pdf" and len(window.project("optdoc").pages) == 2
         assert "(+1)" in window.windowTitle()
     finally:
         window.outcome = "cancelled"

@@ -8,15 +8,12 @@ from __future__ import annotations
 
 import io
 import struct
-import subprocess
 import xml.etree.ElementTree as ET
-from pathlib import Path
 
 import pytest
 
 from tagdoc import exif, formats, medrds
-from tagdoc.formats import gif, heif, jpeg, png, webp
-from tests.conftest import MEDRDS, needs_medrds
+from tagdoc.formats import gif, heif, webp
 
 META = {"title": "Laborbefund", "kind": "lab", "date": "2026-03-12",
         "description": "Befund des Labors, erste Seite",
@@ -168,40 +165,6 @@ def test_what_a_packet_held_beyond_the_standard_stays() -> None:
         assert medrds.parse_xmp(packet)[0]["title"] == "Laborbefund" and "IMG_0042" not in packet
     with Image.open(io.BytesIO(described(picture("jpg"), "jpg")[0])) as image:
         assert b"Laborbefund" in image.info["xmp"]
-
-
-@needs_medrds
-@pytest.mark.parametrize("ending", ("jpg", "png"))
-def test_the_same_bytes_as_the_reference_library(tmp_path: Path, ending: str) -> None:
-    """The XMP of a JPEG and of a PNG is written as the standard's own library writes
-    it: the same picture and packet, the same file."""
-    data = picture(ending)
-    packet = medrds.serialise_xmp(META)
-    (tmp_path / "in").write_bytes(data)
-    (tmp_path / "packet").write_text(packet, encoding="utf-8")
-    name = "embedXmpJpeg" if ending == "jpg" else "embedXmpPng"
-    script = ("import { readFileSync, writeFileSync } from 'node:fs';"
-              f"import {{ {name} }} from '{MEDRDS / 'lib' / 'index.mjs'}';"
-              f"writeFileSync('{tmp_path / 'out'}', {name}(new Uint8Array(readFileSync("
-              f"'{tmp_path / 'in'}')), readFileSync('{tmp_path / 'packet'}', 'utf8')));")
-    subprocess.run(["node", "--input-type=module", "-e", script], check=True)
-    ours = jpeg.with_packet(data, packet) if ending == "jpg" else png.with_packet(data, packet)
-    assert ours == (tmp_path / "out").read_bytes()
-    again = jpeg.with_packet(ours, packet) if ending == "jpg" else png.with_packet(ours, packet)
-    assert again == ours  # a packet in place of the one that was there
-
-
-@needs_medrds
-@pytest.mark.parametrize("ending", list(SAVE))
-def test_medrds_reads_what_was_written(tmp_path: Path, ending: str) -> None:
-    """The standard's reference library finds the description in every type."""
-    from tests.conftest import medrds_reads
-
-    path = tmp_path / f"bild.{ending}"
-    path.write_bytes(described(picture(ending), ending)[0])
-    meta = medrds_reads(path, ending)
-    assert meta["title"] == "Laborbefund" and meta["kind"] == "lab"
-    assert meta["date"] == "2026-03-12" and meta["creator"] == META["creator"]
 
 
 def test_webp_in_its_simple_formats() -> None:
@@ -405,7 +368,6 @@ def test_a_heic_as_other_programs_lay_it_out(layout: dict, with_exif: bool) -> N
     assert again.count(b"<x:xmpmeta") == 1
 
 
-
 def _variants() -> dict[str, tuple[str, bytes]]:
     """Pictures of every type in the ways they come, for the comparison with the library."""
     cases = {}
@@ -422,40 +384,3 @@ def _variants() -> dict[str, tuple[str, bytes]]:
         heic = picture("heic", True, drawing(320, 240))
         cases[f"heic-{name}"] = ("heic", _heic_as(heic, **layout))
     return cases
-
-
-@needs_medrds
-def test_the_same_bytes_as_the_library_in_every_format(tmp_path: Path) -> None:
-    """tagdoc and the standard's reference library write a description into a picture of
-    every type, in every layout tried, and give the very same bytes; and the description
-    written again over the first, too."""
-    import json
-
-    names = "; ".join(medrds.parse_person(c)[0] or c for c in META["creator"])
-    texts = {exif.DESCRIPTION: META["description"], exif.ARTIST: names}
-    ours = {}
-    for name, (ending, data) in _variants().items():
-        (tmp_path / f"{name}.{ending}").write_bytes(data)
-        once, _ = formats.written(data, f".{ending}", medrds.merge_xmp(
-            formats.held(data, f".{ending}").packet, META), texts)
-        twice, _ = formats.written(once, f".{ending}", medrds.merge_xmp(
-            formats.held(once, f".{ending}").packet, {"title": "Neu", "kind": "lab"}),
-            {exif.DESCRIPTION: None, exif.ARTIST: None})
-        ours[name] = (ending, once, twice)
-    (tmp_path / "meta.json").write_text(json.dumps(META), encoding="utf-8")
-    script = (
-        "import { readFileSync, writeFileSync } from 'node:fs';"
-        f"import {{ writePicture }} from '{MEDRDS / 'lib' / 'index.mjs'}';"
-        f"const schema = JSON.parse(readFileSync('{MEDRDS / 'schema' / 'medrds.json'}', 'utf8'));"
-        f"const meta = JSON.parse(readFileSync('{tmp_path / 'meta.json'}', 'utf8'));"
-        f"for (const [name, ext] of {json.dumps([[n, e] for n, (e, _o, _t) in ours.items()])}) {{"
-        f"  const data = new Uint8Array(readFileSync(`{tmp_path}/${{name}}.${{ext}}`));"
-        "  const once = writePicture(data, ext, meta, schema).bytes;"
-        f"  writeFileSync(`{tmp_path}/${{name}}.once`, once);"
-        "  const twice = writePicture(once, ext, { title: 'Neu', kind: 'lab' }, schema).bytes;"
-        f"  writeFileSync(`{tmp_path}/${{name}}.twice`, twice);"
-        "}")
-    subprocess.run(["node", "--input-type=module", "-e", script], check=True)
-    for name, (_ending, once, twice) in ours.items():
-        assert (tmp_path / f"{name}.once").read_bytes() == once, name
-        assert (tmp_path / f"{name}.twice").read_bytes() == twice, name

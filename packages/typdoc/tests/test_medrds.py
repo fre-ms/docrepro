@@ -11,13 +11,8 @@ import pymupdf
 import pytest
 
 from tests.conftest import (
-    MEDRDS,
     encoded,
     letter,
-    needs_medrds,
-    reference_bind,
-    reference_unbinds,
-    several,
     with_orientation,
 )
 from typdoc import medrds, pictures
@@ -80,37 +75,3 @@ def test_every_picture_is_in_the_pdf_as_it_came(tmp_path: Path, jpeg: bytes, png
     assert "/Subtype /image#2Fpng" in text and "/Subtype /image#2Fheic" in text
     assert b"/Info" not in pdf and b"/ID" not in pdf and b"typdoc" not in pdf
     assert medrds.bind(given)[0] == pdf  # the same pictures, the same bytes
-
-
-@needs_medrds
-def test_the_same_bytes_as_the_reference_library(tmp_path: Path, jpeg: bytes, png: bytes,
-                                                 heic: bytes) -> None:
-    """medRDS's own library binds the same pictures: the PDFs are the same, byte for
-    byte, whatever the pictures' formats, orientations, colours and names; and it takes
-    out of typdoc's PDF every picture as it went in."""
-    assert medrds.STANDARD in (MEDRDS / "schema" / "medrds.json").read_text(encoding="utf-8")[:200]
-    pages = several(letter(mode="L"), letter(300, 200), letter(), form="TIFF")
-    two = several(letter(), letter(500, 350), form="HEIF")
-    cases: list[list[tuple[str, bytes, bytes | None]]] = [
-        [("picture-1.jpg", jpeg, None)],
-        [("IMG_1.jpeg", jpeg, None), ("Seite 2 – Anlage.png", png, pictures.shown(png)),
-         ("picture-3.heic", heic, pictures.shown(heic))],
-        [(f"turned-{n}.jpg", with_orientation(jpeg, n), None) for n in range(1, 9)],
-        [("grey.jpg", encoded(letter(mode="L"), "JPEG"), None),
-         ("cmyk.jpg", encoded(letter().convert("CMYK"), "JPEG"), None),
-         ("wide.jpg", encoded(letter(900, 300), "JPEG"), None),
-         ("odd.jpg", encoded(letter(333, 517), "JPEG"), None),
-         ("scan.tiff", encoded(letter(mode="L"), "TIFF"),
-          pictures.shown(encoded(letter(mode="L"), "TIFF"))),
-         ("ohne-endung", png, pictures.shown(png))],
-        [("seiten.tiff", pages, pictures.shown(pages)), ("foto.jpg", jpeg, None),
-         ("zwei.heic", two, pictures.shown(two))],
-    ]
-    for k, case in enumerate(cases):
-        ours, bound = medrds.bind([medrds.Picture(*picture) for picture in case])
-        theirs, their_bound = reference_bind(case, tmp_path / str(k))
-        assert bound == their_bound, k
-        assert ours == theirs, k
-        path = tmp_path / f"{k}.pdf"
-        path.write_bytes(ours)
-        assert reference_unbinds(path) == [entry["sha256"] for entry in bound], k

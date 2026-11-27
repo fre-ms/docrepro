@@ -4,13 +4,10 @@ beyond the standard kept."""
 
 from __future__ import annotations
 
-import json
-import subprocess
-
 import pytest
 
 from tagdoc import medrds
-from tests.conftest import CARD, MEDRDS, needs_medrds
+from tests.conftest import CARD
 
 META = {"title": "Laborbefund <Kalium> & mehr", "kind": "lab",
         "creator": ["Dr. Erika Beispiel <mailto:beispiel@praxis.example>"],
@@ -21,24 +18,6 @@ META = {"title": "Laborbefund <Kalium> & mehr", "kind": "lab",
                         "<urn:uuid:4d2c9b1e-7a3f-4c5d-9e8f-0a1b2c3d4e5f>"],
         "authenticator": "Dr. Erika Beispiel <mailto:beispiel@praxis.example>",
         "confidentiality": "R", "cards": [medrds.card_copy(CARD)]}
-
-
-@needs_medrds
-def test_the_same_packet_as_the_reference_library() -> None:
-    script = (
-        "import { readFileSync } from 'node:fs';"
-        f"import {{ serialiseXmp }} from '{MEDRDS / 'lib' / 'index.mjs'}';"
-        f"const schema = JSON.parse(readFileSync('{MEDRDS / 'schema' / 'medrds.json'}', 'utf8'));"
-        "process.stdout.write(serialiseXmp(JSON.parse(readFileSync(0, 'utf8')), schema));")
-    reference = subprocess.run(["node", "--input-type=module", "-e", script],
-                               input=json.dumps(META), capture_output=True, text=True,
-                               check=True).stdout
-    assert medrds.serialise_xmp(META) == reference
-
-
-@needs_medrds
-def test_the_schema_is_the_standards() -> None:
-    assert medrds.schema() == json.loads((MEDRDS / "schema" / "medrds.json").read_text())
 
 
 def test_people_and_cards() -> None:

@@ -1,6 +1,6 @@
 [project]
 name = "docrepro"
-version = "0.10.0"
+version = "0.11.0"
 description = "Reproduces photographed and scanned documents as digital documents, as near to the original as it can: typdoc, optdoc, ocrdoc and tagdoc in one chain, one window and one program, every step reproducible."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -20,26 +20,30 @@ classifiers = [
 dependencies = [
   # the core the tools share: configuration documents, errors, the command line's manners,
   # no network, the window's building blocks
-  "doccor>=0.3",
+  "doccor>=0.4",
   # the steps; a step that is missing is left out of the chain and the window.
   # Step 5 joins through its entry point docrepro.steps
   "typdoc>=0.3",
-  "optdoc[cleanup]>=0.11",
-  "ocrdoc[ocr,tables,barcodes]>=0.4",
+  "optdoc[cleanup]>=0.12",
+  "ocrdoc[ocr,tables,barcodes]>=0.5",
   # step 40; it joins through its entry point docrepro.steps
-  "tagdoc[heic]>=0.4",
+  "tagdoc[heic]>=0.4.1",
 ]
 
 [project.optional-dependencies]
-gui = ["optdoc[gui]>=0.11", "ocrdoc[gui]>=0.4", "tagdoc[gui]>=0.4"]
+gui = ["optdoc[gui]>=0.12", "ocrdoc[gui]>=0.5", "tagdoc[gui]>=0.4.1"]
 
 [tool.uv.sources]
-doccor = { git = "https://github.com/fre-ms/doccor", tag = "v0.3.0" }
-# released tags: docrepro moves to a new version of a step on purpose
-optdoc = { git = "https://github.com/fre-ms/optdoc", tag = "v0.11.0" }
-ocrdoc = { git = "https://github.com/fre-ms/ocrdoc", tag = "v0.4.0" }
-tagdoc = { git = "https://github.com/fre-ms/tagdoc", tag = "v0.4.0" }
-typdoc = { git = "https://github.com/fre-ms/typdoc", tag = "v0.3.0" }
+# the tools of docrepro, each a package of this repository (packages/<tool>), each usable on
+# its own; docrepro takes them as they stand here, so one tag names one state of them all
+doccor = { workspace = true }
+typdoc = { workspace = true }
+optdoc = { workspace = true }
+ocrdoc = { workspace = true }
+tagdoc = { workspace = true }
+
+[tool.uv.workspace]
+members = ["packages/*"]
 
 [project.scripts]
 docrepro = "docrepro.cli:main"
@@ -52,6 +56,11 @@ build = [
     "pyinstaller>=6.11",
 ]
 dev = [
+  # what the tests of every package need
+  "mypy>=1.13",
+  "pillow>=11",
+  "pillow-heif>=0.18",
+  "pymupdf>=1.25,<2",
   "pytest>=8",
   "pytest-timeout>=2.3",
   "ruff>=0.6",
@@ -63,6 +72,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["docrepro"]
+
+[tool.hatch.build.targets.sdist]
+exclude = ["packages", "packaging", "tests", "docs"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

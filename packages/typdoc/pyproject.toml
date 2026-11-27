@@ -30,13 +30,13 @@ dependencies = [
 typdoc = "typdoc.docrepro:TypdocAdapter"
 
 [tool.uv.sources]
-doccor = { git = "https://github.com/fre-ms/doccor", tag = "v0.3.0" }
+doccor = { workspace = true }  # packages/doccor
 
 [project.scripts]
 typdoc = "typdoc.cli:main"
 
 [project.urls]
-Source = "https://github.com/fre-ms/typdoc"
+Source = "https://github.com/fre-ms/docrepro/tree/main/packages/typdoc"
 
 [dependency-groups]
 dev = [

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.1 (2026-11-27)
+
+Nothing tagdoc writes changed: interface 3, `tagdoc-config` version 1.
+
+### Changed
+
+- **Its tab in docrepro's window** comes through the adapter's `tabs` and `panels`, as every
+  step's does; `panel` is gone. The words of a window's frame are doccor's.
+- **The standard's library, by what it wrote**: the comparisons with medRDS's reference library
+  run everywhere, against what the library wrote for invented pictures kept in
+  `tests/reference/` (`tests/make_reference.py` makes them again); where the library is at hand,
+  one test asks it again.
+- tagdoc is a package of docrepro's repository (`packages/tagdoc`); its history came along.
+
 ## 0.4.0 (2026-11-27)
 
 Interface 3 and `tagdoc-config` version 1 stay; one setting is added.

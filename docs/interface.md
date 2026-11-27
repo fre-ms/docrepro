@@ -1,6 +1,6 @@
 # docrepro's command line as an interface
 
-**Interface 6**, since docrepro 0.10.0. This is what a program may rely on
+**Interface 7**, since docrepro 0.11.0. This is what a program may rely on
 when it calls docrepro, a records app above all, which ships one program instead of one per step.
 
 docrepro brings a photographed or scanned document as near to the original as it can, and goes no
@@ -9,9 +9,17 @@ the document are tasks for other programs, which take what docrepro gives (ocrdo
 document; TimeAttest signs it).
 
 Every answer carries `interface`; it goes up when something a caller relies on changes in a way that breaks
-it. Within one interface, new fields, options and kinds of error may come; a caller ignores what it does not
-know. The steps' own command lines (`docrepro optdoc …`, `docrepro ocrdoc …`) keep their own interfaces
-(typdoc's 3, optdoc's 5, ocrdoc's 3, tagdoc's 3), described in their repositories.
+it. Within one interface, new fields, options and kinds of error may come; a caller ignores what it does
+not know. The steps' own command lines (`docrepro optdoc …`, `docrepro ocrdoc …`) keep their own interfaces
+(typdoc's 3, optdoc's 6, ocrdoc's 4, tagdoc's 3), described in their packages
+(`packages/<tool>/docs/interface.md`).
+
+**From interface 6:** the steps' documents are of new versions (optdoc 0.12.0: `optdoc-config`
+4; ocrdoc 0.5.0: `ocrdoc-config` 2), and a chain document that holds the older ones is no longer
+read (`bad-config`). Every page of them names where it came from, so that what a person decided
+stays with the page wherever the page goes: when typdoc is switched, when optdoc is switched off
+for a page it did not move, and in the window and on the command line alike. The answer is as in
+interface 6.
 
 **From interface 5:** semdoc and attdoc are no steps of docrepro any more (the user, 27 November 2026):
 `about` no longer lists them, `not_installed` no longer names them, and `docrepro semdoc …` or `docrepro
@@ -127,7 +135,7 @@ step that is not in use hands on what it got, untouched, and writes nothing:
 **No step is to force a file type.** typdoc is the one step that changes a document's type; the steps after
 it take what they are handed. optdoc keeps the type it is handed (from 0.10.0); so does ocrdoc (from
 0.4.0), which lays its reading beside a picture; so does tagdoc (from 0.3.0), which writes its description
-into the picture where the picture's format has a place for one (`docs/family-design.md` in optdoc has the
+into the picture where the picture's format has a place for one (`docs/family-design.md` has the
 design).
 
 **Several files.** Pictures of one document (`docrepro run seite-1.jpg seite-2.jpg …`) are bound by typdoc
@@ -201,14 +209,12 @@ it changed since). A filled circle marks a step in use, an empty one a step that
 its tabs; the tabs of a step that is off are closed. The window starts with the steps the chain document
 or `--without` say. typdoc has no tab (it has nothing to decide); for a PDF it says "nothing to do". For a
 picture it is on unless the person switches it off: then the picture stays a picture through every tab.
-Switching typdoc hands optdoc another file (the picture, or the PDF of it) that shows the very same pages:
-optdoc takes along what a person planned, and ocrdoc, which finds the same frames in optdoc's document,
-keeps what a person decided in it. Where optdoc is off, ocrdoc has no frames to go by and starts anew; the
-status line says so.
-What a person decided in a step that is
-switched off is kept, in the chain document too, and is back when the step is switched on again; one
-case apart: where optdoc is switched off, ocrdoc reads the original, a different file, and starts anew
-(the status line says so).
+Switching typdoc hands the steps after it another file (the picture, or the PDF of it) that shows the
+very same pages, every page of the same origin: optdoc takes along what a person planned, and ocrdoc keeps
+what a person decided in it, with optdoc in use or not. Switching optdoc off hands ocrdoc what optdoc was
+handed: what a person decided in ocrdoc stays on every page optdoc had not moved, and goes on the others;
+the status line says which. What a person decided in a step that is switched off is kept, in the chain
+document too, and is back when the step is switched on again.
 
 When the
 person turns to tab 5, ocrdoc writes its result as it stands (reading the pages not read yet) and tagdoc

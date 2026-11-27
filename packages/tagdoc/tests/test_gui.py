@@ -13,6 +13,7 @@ from tagdoc.project import Project
 from tests.conftest import CARD
 
 pytest.importorskip("PySide6")
+from doccor.gui.words import FRAME
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from tagdoc.gui.panel import DescribePanel  # noqa: E402
@@ -35,7 +36,7 @@ def test_words_in_both_languages() -> None:
                     and node.func.attr == "w" and node.args
                     and isinstance(node.args[0], ast.Constant)):
                 used.add(node.args[0].value)
-    assert used <= set(WORDS), used - set(WORDS)
+    assert used <= set(WORDS) | set(FRAME), used - set(WORDS) - set(FRAME)
 
 
 def test_the_form(app: QApplication, report: Path) -> None:

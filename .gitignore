@@ -8,4 +8,8 @@ dist/
 build/
 *.egg-info/
 *.docrepro/
+*.typdoc/
+*.optdoc/
+*.ocrdoc/
+*.tagdoc/
 .DS_Store

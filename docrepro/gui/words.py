@@ -8,11 +8,11 @@ from doccor.gui import words as _words
 from doccor.gui.words import LANGUAGES, Words, system_language
 
 WORDS: dict[str, tuple[str, str]] = {  # key: (English, German)
-    "tab_prepare": ("1 Prepare", "1 Aufbereiten"),
-    "tab_filters_2": ("2 Filters for OCR", "2 Filter für die Texterkennung"),
-    "tab_regions_3": ("3 Areas", "3 Bereiche"),
-    "tab_text_4": ("4 Check the text", "4 Text prüfen"),
-    "tab_tagdoc": ("Describe", "Beschreiben"),
+    # the tabs of the steps whose adapters are docrepro's; the window numbers them
+    "tab_optdoc": ("Prepare", "Aufbereiten"),
+    "tab_ocrdoc_filters": ("Filters for OCR", "Filter für die Texterkennung"),
+    "tab_ocrdoc_regions": ("Areas", "Bereiche"),
+    "tab_ocrdoc_text": ("Check the text", "Text prüfen"),
     # the steps on the left: which are in use, and what became of each
     "chain_steps": ("Steps in use", "Schritte in Gebrauch"),
     "chain_typdoc": ("bind into a PDF", "zum PDF binden"),
@@ -25,37 +25,31 @@ WORDS: dict[str, tuple[str, str]] = {  # key: (English, German)
     "chain_person": ("in use, changed by hand", "in Gebrauch, von Hand geändert"),
     "chain_stale": ("in use, to be made anew", "in Gebrauch, neu zu machen"),
     "chain_missing": ("not installed", "nicht installiert"),
-    "chain_rebound": ("optdoc is handed another file now (typdoc was switched), whose pages it "
-                      "could not match: it starts anew, and what was decided in it went.",
-                      "optdoc bekommt jetzt eine andere Datei (typdoc wurde umgeschaltet), deren "
-                      "Seiten nicht passen: es beginnt neu, und was darin entschieden war, ist "
-                      "verworfen."),
     "chain_several": ("{count} pictures: one document only bound into one",
                       "{count} Bilder: nur gebunden ein Dokument"),
     "chain_off_tip": ("{step} is switched off (see the steps on the left).",
                       "{step} ist ausgeschaltet (siehe die Schritte links)."),
     "chain_none": ("No step is switched on: there is nothing to do.",
                    "Kein Schritt ist eingeschaltet: es gibt nichts zu tun."),
-    "chain_anew": ("ocrdoc reads another file now (a step before it was switched): it starts "
-                   "anew, and what was decided in it went.",
-                   "ocrdoc liest jetzt eine andere Datei (ein Schritt davor wurde umgeschaltet): "
-                   "es beginnt neu, und was darin entschieden war, ist verworfen."),
+    # what became of a person's decisions in a step when a step before it changed
+    "chain_anew": ("{step} is handed pages now that are not those its work was made on: it "
+                   "starts anew, and what was decided in it went.",
+                   "{step} bekommt jetzt Seiten, die nicht die sind, auf denen seine Arbeit "
+                   "gemacht war: es beginnt neu, und was darin entschieden war, ist verworfen."),
+    "dropped_pages": ("{step}: page(s) {pages} lie otherwise now (a step before turned, "
+                      "unwarped or straightened them otherwise, or was switched): what was "
+                      "decided there went.",
+                      "{step}: Seite(n) {pages} liegen jetzt anders (ein Schritt davor hat sie "
+                      "anders gedreht, entzerrt oder begradigt, oder wurde umgeschaltet): was "
+                      "dort entschieden war, ist verworfen."),
+    "kept_decisions": ("{step}: a step before it changed; what was decided in it stays, every "
+                       "page lying as it lay.",
+                       "{step}: ein Schritt davor hat sich geändert; was darin entschieden war, "
+                       "bleibt, jede Seite liegt, wie sie lag."),
     "opening_step": ("The step opens on the result of the one before …",
                      "Der Schritt öffnet sich auf dem Ergebnis des vorigen …"),
-    "describing": ("ocrdoc writes its result for the description (reading the pages not read "
-                   "yet) …", "ocrdoc schreibt sein Ergebnis für die Beschreibung (und liest "
-                   "die Seiten, die noch nicht gelesen sind) …"),
-    "preparing": ("optdoc prepares the pages for the next steps …",
-                  "optdoc bereitet die Seiten für die nächsten Schritte auf …"),
-    "dropped_pages": ("Page(s) {pages} moved in optdoc (turned, unwarped or straightened "
-                      "otherwise): what was decided there in the later steps went.",
-                      "Seite(n) {pages} haben sich in optdoc verschoben (anders gedreht, "
-                      "entzerrt oder begradigt): was dort in den späteren Schritten entschieden "
-                      "war, ist verworfen."),
-    "kept_decisions": ("optdoc changed the pages; what was decided in the later steps stays "
-                       "where a page did not move.",
-                       "optdoc hat die Seiten geändert; was in den späteren Schritten "
-                       "entschieden war, bleibt, wo sich eine Seite nicht verschoben hat."),
+    "bringing": ("{step} is brought up to what the steps before it give now …",
+                 "{step} wird auf das gebracht, was die Schritte davor jetzt geben …"),
 }
 
 _words.register(WORDS)

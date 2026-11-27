@@ -1,6 +1,6 @@
 # optdoc's command line as an interface
 
-**Interface 5**, since optdoc 0.10.0. This is what a program may
+**Interface 6**, since optdoc 0.12.0. This is what a program may
 rely on when it calls optdoc, whatever language it is written in: a records app, a pseudonymiser,
 a script, docrepro.
 
@@ -12,6 +12,16 @@ happened). Releases are tagged; pin a tag, not a branch.
 
 optdoc does one step of docrepro: it makes a photographed or scanned page **faithful**. Reading
 the page is ocrdoc's step after it.
+
+**From interface 5: every page says where it came from.** The configuration document is version
+4 (version 3 is no longer read): every page of `input` names its `origin`, the original file it
+shows and which of that file's pages it is (doccor's `origins`). A document made on another file
+is taken where that file shows the same pages, every page of the same origin and size (a picture,
+and the PDF typdoc bound it into): a person's plans stay, optdoc suggests the rest anew. No caller
+has to vouch for it any more (`same_document` is gone); any other file is still refused
+(`config-mismatch`). A page that nothing of its plan moves has no frame (`null`), as the page of
+the original has none, and keeps the size of the page it came as, to the point (before, its size
+followed its rounded pixels, a tenth of a point off).
 
 **From interface 4: a picture stays a picture.** optdoc forces no file type: handed a JPEG it
 writes a JPEG, handed a HEIC a HEIC, and so for PNG, TIFF, WebP, BMP, GIF and PNM; `document` in
@@ -240,12 +250,13 @@ file that is not the one listed, is done without, and is no error.
 configuration document names the model that took part (`"models": ["page-orientation"]`). Making
 the result again from the document needs no model and no `--models`.
 
-## The configuration document: `optdoc-config`, version 3
+## The configuration document: `optdoc-config`, version 4
 
 ```json
-{"format": "optdoc-config", "version": 3, "made_with": "optdoc 0.11.0",
+{"format": "optdoc-config", "version": 4, "made_with": "optdoc 0.12.0",
  "input": {"sha256": "…", "bytes": 245678, "suffix": ".jpg",
-           "pages": [{"width": 595.276, "height": 841.89}]},
+           "pages": [{"width": 595.276, "height": 841.89,
+                      "origin": {"sha256": "…", "index": 0}}]},
  "options": {"photo": null, "clean_up": true, "colour_pages": "jpeg"},
  "pages": [{"page": 1,
             "plan": {"rotation": 0, "straighten": true, "angle": 2.1, "unwarp": true,
@@ -257,12 +268,15 @@ the result again from the document needs no model and no `--models`.
 ```
 
 Everything that decides the result, and nothing else: no paths, no times. `input` names the file
-it belongs to by its SHA-256, and every page's size as it came; for another file the document is
-refused (`config-mismatch`). (A program that knows two files show the same pages, a picture and the
-PDF typdoc bound it into, may take a document of the one for the other in Python:
-`Project.open(file, config=…, same_document=True)`. Where every page has the size the document
-names, a person's plans stay and optdoc suggests the rest anew; docrepro's window does this when typdoc
-is switched.) `options` are the settings. Per page: its `plan` (`null` for a page
+it belongs to by its SHA-256, and every page's size as it came and its `origin`: the original file
+the page shows (its SHA-256) and which of that file's pages it is (`index`, from 0). A picture is
+its own original; a page of a PDF is the file it names as its source (as medRDS 9.5 binds a
+picture that is no JPEG), else the JPEG it is and nothing else (as it binds a JPEG), else the PDF
+and the page's number. So a picture and the PDF typdoc bound it into have the same origins, and
+two letters of the same size never do. For another file the document is taken where every page
+has the same origin and size (to a hundredth of a point): what a person planned stays, and optdoc
+suggests its own plans anew for this file; otherwise it is refused (`config-mismatch`). docrepro's
+window and chain rely on this when typdoc is switched. `options` are the settings. Per page: its `plan` (`null` for a page
 left as it came; a plan may do nothing and still keep the sheet's corners it found), who decided
 it (`by`: "auto" as optdoc suggested it, "person" once a person changed it), and its `frame`.
 Where a model took part in a suggested plan, the entry also has `models`, the names of those
@@ -270,9 +284,12 @@ models (`"models": ["page-orientation"]`); a plan a person decided names none.
 
 **The frame** is a fingerprint of where things lie on the prepared page: its size, and what of the
 plan moves the page (a quarter turn, the sheet's corners, the tilt straightened). Light, contrast,
-colour and masks leave it as it is. ocrdoc reads optdoc's PDF and records the frames it found
-there; when a person changes a page in optdoc later, ocrdoc keeps what the person decided there
-(areas, a table's grid, corrected text) as long as the page's frame stays the same.
+colour and masks leave it as it is. A page nothing moves has no frame (`null`): it lies as the
+page of the original lies, and keeps its size to the point. ocrdoc reads optdoc's PDF and records
+the frames and origins it found there; when a person changes a page in optdoc later, ocrdoc keeps
+what the person decided there (areas, a table's grid, corrected text) as long as the page comes
+from the same place and its frame stays the same, also when optdoc is switched off for a page it
+did not move.
 
 **The same file and the same document give the same two files, byte for byte**, on the same
 version of optdoc: every page is prepared from its plan, and the PDF carries no time and a file
@@ -318,4 +335,4 @@ The same kinds and wording are there for programs that use optdoc as a Python li
 ## Licence
 
 optdoc is free software under the GNU Affero General Public License 3.0 or later; its source is at
-https://github.com/fre-ms/optdoc. A program that ships it names it and where its source is.
+https://github.com/fre-ms/docrepro (folder `packages/optdoc`). A program that ships it names it and where its source is.

@@ -1,5 +1,6 @@
 """Shared fixtures: invented documents, a card of an invented address book, and the
-reference library of medRDS where it is at hand (``MEDRDS``, else ``../medRDS``)."""
+reference library of medRDS where it is at hand (``MEDRDS``, else ``medRDS`` beside this
+repository)."""
 
 from __future__ import annotations
 
@@ -13,7 +14,8 @@ from typing import Any
 import pymupdf
 import pytest
 
-MEDRDS = Path(os.environ.get("MEDRDS", Path(__file__).resolve().parents[2] / "medRDS"))
+# medRDS beside this repository (tests -> package -> packages -> docrepro -> beside it)
+MEDRDS = Path(os.environ.get("MEDRDS", Path(__file__).resolve().parents[4] / "medRDS"))
 CARD = ("BEGIN:VCARD\r\nVERSION:4.0\r\nUID:urn:uuid:4D2C9B1E-7A3F-4C5D-9E8F-0A1B2C3D4E5F\r\n"
         "KIND:org\r\nFN:Labor Muster GmbH\r\nORG:Labor Muster GmbH\r\n"
         "EMAIL:befunde@labor.example\r\nTEL:+49-821-000000\r\n"

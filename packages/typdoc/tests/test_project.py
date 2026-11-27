@@ -182,3 +182,25 @@ def test_a_file_of_several_pictures_is_a_page_for_each(tmp_path: Path, jpeg: byt
         assert doc.embfile_count() == 1 and doc.embfile_get(0) == scan.read_bytes()
         for n in range(3):
             assert "AF" in doc.xref_get_keys(doc[n].xref)
+
+
+def test_every_page_bound_names_the_picture_it_shows(tmp_path: Path, jpeg: bytes, png: bytes,
+                                                     heic: bytes) -> None:
+    """A page of typdoc's PDF comes from the very picture, and the very page of it, that
+    the picture shows when looked at by itself (:mod:`doccor.origins`): so the steps after
+    typdoc know that its PDF and the pictures show the same pages, and that nothing else
+    does."""
+    from doccor import origins
+
+    from tests.conftest import several, with_orientation
+
+    files = {"foto.jpg": with_orientation(jpeg, 6), "bild.png": png, "bild.heic": heic,
+             "scan.tiff": several(letter(mode="L"), letter(300, 200), form="TIFF")}
+    paths = []
+    for name, data in files.items():
+        (tmp_path / name).write_bytes(data)
+        paths.append(tmp_path / name)
+    written = output.write(Project.open(paths).build(), tmp_path / "out", "brief")
+    expected = [found for path in paths for found in origins.of(path)]
+    assert len(expected) == 5
+    assert origins.of(written["document"]) == expected

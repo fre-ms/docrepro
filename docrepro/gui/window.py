@@ -1,37 +1,27 @@
 """The window of ``docrepro edit``: the whole way in one window.  On the left the steps,
-each with a switch and its state, and the pages; a tab for every panel of the steps whose
-tools are installed, in the chain's order (optdoc's preparation, ocrdoc's filters, areas
-and text, tagdoc's description), and three ways out.
+each with a switch and its state, and the pages; the tabs of the steps whose tools are
+installed, in the chain's order (each step brings its own: optdoc's preparation, ocrdoc's
+filters, areas and text, tagdoc's description), numbered; and three ways out.
+
+**No step is named here.**  The window goes through the steps as the chain does
+(:mod:`docrepro.chain`): each step that is in use is handed what the step in use before it
+gives, the first the original (or the originals, to the step that binds pictures).  A
+step is opened when its tab is first shown, and opened again whenever what it is handed
+changed (a step before it was switched, or a person changed something there), with
+everything it held, so that the step's own rule decides what stays of what a person
+decided in it: a page that came from the same place and lies as it lay keeps it, a page
+that lies otherwise loses it (its origin and its frame, :mod:`doccor.origins`).  So a
+picture and the PDF typdoc bound it into show the same pages, and switching typdoc keeps
+what was decided in every step after it, with optdoc in use or not.  The status line
+says what became of a person's decisions.
 
 **Every step is optional.**  The switches on the left say which steps are in use for this
 document; a step that is off hands on what it got, and its tabs are closed and marked.
 Beside each switch stands what became of the step: off, in use as suggested, changed by
 hand, or to be made anew because a step before it changed.  What a person decided in a
-step that is switched off is kept, and back when the step is switched on again.
-
-typdoc, which binds a picture into a PDF, has no tab: it has nothing to decide.  For a PDF
-it has nothing to do.  For several pictures (the pages of one document) it is on and stays
-on: they are one document only bound into one.  For a picture it is on unless the person
-switches it off: then the picture stays a picture through every step.  Switching typdoc
-hands optdoc another file
-(the picture, or the PDF of it) that shows the very same pages, so optdoc takes along
-what a person planned (``same_document``), and ocrdoc, which finds the same frames in
-optdoc's document, keeps what a person decided in it.  Where optdoc is off, ocrdoc has no
-frames to go by and starts anew; the status line says so.
-
-The steps work as in their own windows; their panels are theirs.  What joins them: when
-the person turns from optdoc's tab to a later one after changing a page there, optdoc's
-PDF is made anew (in the hidden working folder inside the results) and ocrdoc opens it
-with everything it held so far.  ocrdoc's own rule decides what stays: where a page did
-not move (only its light, contrast or colour changed), what the person decided there
-stays; where it moved, it goes, and the status line names the pages.  Where optdoc is
-off, ocrdoc reads the original.
-
-The steps after ocrdoc that bring a panel (tagdoc's form, "5 Describe") get their tab the
-same way: when the person turns to it, ocrdoc writes its result as it stands (it reads the
-pages not read yet), and the step opens it with what it held; a description is of the
-whole document, so a person's fields stay whatever changed before.  Where ocrdoc is off,
-the step opens what optdoc gave, or the original.
+step that is switched off is kept, and back when the step is switched on again.  A step
+with nothing to do (typdoc for a PDF) cannot be switched; several pictures are one
+document only bound into one, so the step that binds them stays on.
 
 - **Apply** closes; the command line then takes the original through the steps in use with
   the configuration documents of the window, exactly as ``run --config`` would.
@@ -42,10 +32,11 @@ the step opens what optdoc gave, or the original.
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from doccor import documents
+from doccor import documents, origins
 from doccor.errors import DocError
 from doccor.gui.worker import Worker
 from PySide6.QtCore import Qt
@@ -73,6 +64,41 @@ from docrepro.gui.words import WORDS, Words
 IN_USE, OFF = "●", "○"  # the signs of a step in use and of one that is off
 
 
+@dataclass(eq=False)
+class Stage:
+    """One step in the window: its tool's adapter; its project once opened, on ``given``,
+    standing on ``basis`` (what the steps before it were then); the file it last wrote for
+    the step after it, named by what it was made from; its panels and the indices of their
+    tabs."""
+
+    step: registry.Step
+    adapter: Any
+    project: Any = None
+    given: Path | list[Path] | None = None
+    basis: bytes | None = None
+    output: tuple[bytes, Path] | None = None
+    panels: list[Any] = field(default_factory=list)
+    tabs: list[int] = field(default_factory=list)
+
+    @property
+    def name(self) -> str:
+        return self.step.name
+
+
+@dataclass
+class Opened:
+    """A step opened anew off the window's thread, to be put in place on it: its project,
+    what it was opened on and stands on, the pages that lost a person's decisions, and
+    whether it had to start anew (what it held belonged to another document)."""
+
+    stage: Stage
+    project: Any
+    given: Path | list[Path]
+    basis: bytes
+    dropped: list[int]
+    anew: bool
+
+
 class ChainWindow(QMainWindow):
     """The window on one chain.  ``outcome`` is "applied", "saved" or "cancelled" once it
     closes; :meth:`configs` gives the configuration documents of its steps, :attr:`used`
@@ -81,11 +107,6 @@ class ChainWindow(QMainWindow):
 
     def __init__(self, chain: Chain, work: Path, words: Words, synchronous: bool = False) -> None:
         super().__init__()
-        from ocrdoc.gui.filters_panel import FiltersPanel
-        from ocrdoc.gui.regions_panel import RegionsPanel
-        from ocrdoc.gui.text_panel import TextPanel
-        from optdoc.gui.cleanup_panel import CleanupPanel
-
         self.chain = chain
         self.work = work
         self.w = words
@@ -97,45 +118,15 @@ class ChainWindow(QMainWindow):
         self._round = 0
         self._note = ""  # what became of the person's decisions when a step before changed
         self._stale: set[str] = set()  # steps that may have to be made anew
-        adapters = {step.name: made for step, made in chain.steps}
-        self.optdoc, self.ocrdoc = adapters["optdoc"], adapters["ocrdoc"]
-        self.typdoc: Any = adapters.get("typdoc")  # None where it is not installed
-        self.used: set[str] = set(chain.used)
-        # a picture goes on as a PDF through typdoc, or stays a picture; a PDF needs none
-        self.photo = chain.original.suffix.lower() != ".pdf"
-        if not self.photo:
-            self.used.discard("typdoc")
-        self.bound_project: Any = None
-        # several pictures are one document only bound into one: typdoc stays on for them
-        self.several = len(chain.originals) > 1
-        if self.typdoc is not None and self.photo:
-            self.bound_project = chain.opened(self.typdoc, chain.originals,
-                                              chain.configs.get("typdoc"), work / "typdoc")
-        self._origin = self._bound()  # what optdoc is handed: typdoc's PDF, or the original
-        self.prepared_project = chain.opened(self.optdoc, self._origin,
-                                             chain.configs.get("optdoc"), work / "optdoc")
-        self.read_project: Any = None
-        self._prepared_key = b""
-        self._read_source = chain.original  # what ocrdoc's project is opened on
-        self._read_on_optdoc = False  # whether that is optdoc's PDF
-        self._swap(*self._remake(None))  # ocrdoc on what optdoc gives, before the window shows
-        # the steps after ocrdoc that bring a panel (tagdoc): opened when their tab is shown
-        self.after_ocrdoc = [(step, made) for step, made in chain.steps
-                             if step.order > 20 and hasattr(made, "panel")]
-        self.later_projects: dict[str, Any] = {step.name: None for step, _m in self.after_ocrdoc}
-        self.later_panels: dict[str, Any] = {}
-        self.later_keys: dict[str, bytes] = {}
+        self.stages = [Stage(step, made) for step, made in chain.steps]
+        self._by_name = {stage.name: stage for stage in self.stages}
+        self.several = len(chain.originals) > 1  # one document only bound into one
+        # a step with nothing to do for these originals (typdoc for a PDF) is not in use
+        self.used: set[str] = {name for name in chain.used if name in self._by_name
+                               and self._by_name[name].step.has_work(chain.originals)}
         named = chain.original.name + (f" (+{len(chain.originals) - 1})" if self.several else "")
         self.setWindowTitle(self.w("title", tool="docrepro", name=named))
         self.resize(1400, 840)
-        self.cleanup = CleanupPanel(self.prepared_project, words)
-        self.cleanup.changed.connect(lambda n: self._worked_in("optdoc", n))
-        reading: Any = self.read_project  # ocrdoc's project, made just above
-        self.filters = FiltersPanel(reading, words)
-        self.filters.changed.connect(lambda n: self._worked_in("ocrdoc", n))
-        self.areas = RegionsPanel(reading, words, self._find_regions)
-        self.areas.changed.connect(lambda n: self._worked_in("ocrdoc", n))
-        self.text = TextPanel(reading, words, self._read_page)
         central = QWidget()
         v = QVBoxLayout(central)
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -148,29 +139,21 @@ class ChainWindow(QMainWindow):
         left.setMaximumWidth(250)
         splitter.addWidget(left)
         self.tabs = QTabWidget()
-        self._tab_steps: list[str] = []  # the step each tab belongs to, by index
+        self._tab_stage: list[Stage] = []  # the step each tab belongs to, by index
         self._tab_labels: list[str] = []  # each tab's words, without its sign
-        for panel, key, name in ((self.cleanup, "tab_prepare", "optdoc"),
-                                 (self.filters, "tab_filters_2", "ocrdoc"),
-                                 (self.areas, "tab_regions_3", "ocrdoc"),
-                                 (self.text, "tab_text_4", "ocrdoc")):
-            self.tabs.addTab(panel, self.w(key))
-            self._tab_steps.append(name)
-            self._tab_labels.append(self.w(key))
-        self.placeholders: dict[str, QWidget] = {}
-        for number, (step, _made) in enumerate(self.after_ocrdoc, 5):
-            placeholder = QLabel(self.w("opening_step"))
-            self.placeholders[step.name] = placeholder
-            label = self.w(f"tab_{step.name}") if f"tab_{step.name}" in WORDS else step.name
-            self.tabs.addTab(placeholder, f"{number} {label}")
-            self._tab_steps.append(step.name)
-            self._tab_labels.append(f"{number} {label}")
+        for stage in self.stages:  # every step's tabs, a placeholder until it is opened
+            for label in (stage.adapter.tabs(words) if hasattr(stage.adapter, "tabs") else []):
+                index = self.tabs.count()
+                self.tabs.addTab(QLabel(self.w("opening_step")), f"{index + 1} {label}")
+                stage.tabs.append(index)
+                self._tab_stage.append(stage)
+                self._tab_labels.append(f"{index + 1} {label}")
         splitter.addWidget(self.tabs)
         splitter.setSizes([230, 1170])
         v.addWidget(splitter, 1)
         v.addLayout(self._build_bar())
         self.setCentralWidget(central)
-        for n in range(len(self.prepared_project.pages)):
+        for n in range(sum(len(origins.of(o)) for o in chain.originals)):
             self.pages.addItem(self.w("page", number=n + 1))
         self.pages.setCurrentRow(0)  # before the signal is connected: shown just below
         self.pages.currentRowChanged.connect(self._show)
@@ -220,34 +203,46 @@ class ChainWindow(QMainWindow):
             bar.addWidget(button)
         return bar
 
+    # -- what the window holds, by step --------------------------------------------------------
+    def project(self, name: str) -> Any:
+        """A step's project, where the window opened it."""
+        stage = self._by_name.get(name)
+        return None if stage is None else stage.project
+
+    def given(self, name: str) -> Path | list[Path] | None:
+        """What a step's project was opened on."""
+        stage = self._by_name.get(name)
+        return None if stage is None else stage.given
+
+    def output(self, name: str) -> Path | None:
+        """The file a step last wrote for the step after it."""
+        stage = self._by_name.get(name)
+        return None if stage is None or stage.output is None else stage.output[1]
+
+    def panel(self, name: str, k: int = 0) -> Any:
+        """A step's ``k``-th panel, once the step was opened."""
+        stage = self._by_name.get(name)
+        return stage.panels[k] if stage is not None and k < len(stage.panels) else None
+
     # -- which steps are in use ----------------------------------------------------------------
     def state(self, name: str) -> str:
         """What became of a step: "missing" (its tool is not installed), "nothing" (it has
-        nothing to do for this original: typdoc for a PDF), "off", "stale"
-        (in use, and what it made is to be made anew since a step before it changed),
-        "person" (in use, a person decided something in it) or "auto" (in use as
-        suggested)."""
-        adapters = {step.name: made for step, made in self.chain.steps}
-        if name not in adapters:
+        nothing to do for these originals: typdoc for a PDF), "off", "stale" (in use, and
+        what it made is to be made anew since a step before it changed), "person" (in use,
+        a person decided something in it) or "auto" (in use as suggested)."""
+        stage = self._by_name.get(name)
+        if stage is None:
             return "missing"
-        if name == "typdoc" and not self.photo:
+        if not stage.step.has_work(self.chain.originals):
             return "nothing"
         if name not in self.used:
             return "off"
-        if name == "typdoc":
-            project: Any = self.bound_project
-        elif name == "optdoc":
-            project = self.prepared_project
-        elif name == "ocrdoc":
-            project = self.read_project
-        else:
-            project = self.later_projects.get(name)
-        if name in self._stale and (project is not None or name in self.chain.configs):
+        if name in self._stale and (stage.project is not None or name in self.chain.configs):
             return "stale"
-        if project is None:  # not opened in the window: as the chain document has it
+        if stage.project is None:  # not opened in the window: as the chain document has it
             decided = registry.decided_by_person(self.chain.configs.get(name))
         else:
-            decided = registry.by_person(adapters[name], project)
+            decided = registry.by_person(stage.adapter, stage.project)
         return "person" if decided else "auto"
 
     def _refresh(self) -> None:
@@ -256,21 +251,22 @@ class ChainWindow(QMainWindow):
         where no step is in use."""
         for name, switch in self.step_boxes.items():
             state = self.state(name)
+            stage = self._by_name.get(name)
             switch.blockSignals(True)
             switch.setChecked(name in self.used)
             switch.blockSignals(False)
-            bound = name == "typdoc" and self.several  # it makes one document of them
+            bound = stage is not None and stage.step.takes == "pictures" and self.several
             switch.setEnabled(state not in ("missing", "nothing") and not bound)
             sign = OFF if state in ("missing", "nothing", "off") else IN_USE
             words = self.w(f"chain_{state}")
             if bound:
                 words = f"{words} ({self.w('chain_several', count=len(self.chain.originals))})"
             self.step_states[name].setText(f"{sign} {words}")
-        for index, name in enumerate(self._tab_steps):
-            on = name in self.used
+        for index, stage in enumerate(self._tab_stage):
+            on = stage.name in self.used
             self.tabs.setTabEnabled(index, on)
             self.tabs.setTabText(index, f"{IN_USE if on else OFF} {self._tab_labels[index]}")
-            self.tabs.setTabToolTip(index, "" if on else self.w("chain_off_tip", step=name))
+            self.tabs.setTabToolTip(index, "" if on else self.w("chain_off_tip", step=stage.name))
         idle = self._worker is None
         for button in (self.later_button, self.apply_button):
             button.setEnabled(idle and bool(self.used))
@@ -279,23 +275,24 @@ class ChainWindow(QMainWindow):
 
     def _later_than(self, name: str) -> set[str]:
         """The steps in use after ``name``."""
-        order = {step.name: step.order for step in registry.STEPS}
-        return {step.name for step, _made in self.chain.steps
-                if step.name in self.used and order[step.name] > order[name]}
+        order = {stage.name: k for k, stage in enumerate(self.stages)}
+        return {stage.name for stage in self.stages
+                if stage.name in self.used and order[stage.name] > order.get(name, -1)}
 
     def _toggle(self, name: str, on: bool) -> None:
-        """Switch a step on or off: the steps after it are to be made anew; a tab that
-        closed is left."""
+        """Switch a step on or off: the steps after it are to be made anew, and the step
+        itself where what it is handed changed while it was off; a tab that closed is
+        left."""
         if on:
             self.used.add(name)
         else:
             self.used.discard(name)
         self.changed = True
         self._stale |= self._later_than(name)
-        if on and name not in ("typdoc", "optdoc"):
-            self._stale.add(name)  # what it gets may have changed while it was off
-        if name == "typdoc":
-            self._rebind()
+        stage = self._by_name.get(name)
+        if on and stage is not None and stage.project is not None \
+                and stage.basis != self._basis(stage):
+            self._stale.add(name)
         self._stale &= self.used
         self._refresh()
         if not self._leave_closed_tab():
@@ -304,7 +301,7 @@ class ChainWindow(QMainWindow):
     def _leave_closed_tab(self) -> bool:
         """Turn to the first open tab where the one shown belongs to a step that is off;
         True when the tab changed (which shows the page)."""
-        if self.tabs.isTabEnabled(self.tabs.currentIndex()):
+        if self.tabs.count() == 0 or self.tabs.isTabEnabled(self.tabs.currentIndex()):
             return False
         for index in range(self.tabs.count()):
             if self.tabs.isTabEnabled(index):
@@ -313,257 +310,223 @@ class ChainWindow(QMainWindow):
         return False
 
     # -- the steps joined ----------------------------------------------------------------------
-    def _bound(self) -> Path:
-        """What optdoc is handed: typdoc's PDF where typdoc is in use, else the original."""
-        if "typdoc" not in self.used or self.bound_project is None:
-            return self.chain.original
+    def _config_bytes(self, stage: Stage, pending: dict[str, Any]) -> bytes:
+        """A step's configuration document as it stands: of its project (the one just opened
+        where there is one), else the chain document's, else that it starts fresh."""
+        project = pending.get(stage.name, stage.project)
+        if project is not None:
+            return documents.document_bytes(stage.adapter.config(project))
+        held = self.chain.configs.get(stage.name)
+        return documents.document_bytes(held) if held is not None else b"fresh"
+
+    def _basis(self, stage: Stage, pending: dict[str, Any] | None = None) -> bytes:
+        """What a step stands on, named: the originals, and for every step before it
+        whether it is in use and its configuration document (which names its input, so
+        that what it was handed is in it as well)."""
+        pending = pending or {}
+        parts = [str(o).encode() for o in self.chain.originals]
+        for earlier in self.stages:
+            if earlier is stage:
+                break
+            if earlier.name not in self.used:
+                parts.append(earlier.name.encode() + b":off")
+            else:
+                parts.append(earlier.name.encode() + b":" + self._config_bytes(earlier, pending))
+        return b"\n".join(parts)
+
+    def _given(self, stage: Stage, pending: dict[str, Any]) -> Path | list[Path]:
+        """What a step is handed: what the step in use before it gives, else the original
+        (the originals, to the step that binds pictures)."""
+        before = [s for s in self.stages[:self.stages.index(stage)] if s.name in self.used]
+        if not before:
+            return list(self.chain.originals) if stage.step.takes == "pictures" \
+                else self.chain.original
+        return self._output(before[-1], pending)
+
+    def _output(self, stage: Stage, pending: dict[str, Any]) -> Path:
+        """The file a step gives as it stands, written once for what it was made from (in a
+        folder of its own each time, so that an old project can still be closed cleanly)."""
+        key = self._basis(stage, pending) + b"\n" + self._config_bytes(stage, pending)
+        if stage.output is not None and stage.output[0] == key:
+            return stage.output[1]
         self._round += 1
-        folder = self.work / "typdoc" / str(self._round)
-        made: Path = self.typdoc.write(self.bound_project, folder, self.chain.original.stem,
-                                       None)["document"]
+        folder = self.work / stage.name / str(self._round)
+        project = pending.get(stage.name, stage.project)
+        made: Path = stage.adapter.write(project, folder, self.chain.original.stem,
+                                         None)["document"]
+        stage.output = (key, made)
         return made
 
-    def _rebind(self) -> None:
-        """typdoc was switched: optdoc is handed another file, which shows the very pages
-        the one before showed (the picture, or typdoc's PDF of it).  It takes what a person
-        planned along; where it cannot (a page of another size), it starts anew, and the
-        status line says so where a person's plans went."""
-        from optdoc.project import Project as Preparation
+    def _current(self, stage: Stage) -> bool:
+        """True when a step is opened on what the steps before it give now."""
+        return stage.project is not None and stage.basis == self._basis(stage)
 
-        old = self.prepared_project
-        lost = registry.by_person(self.optdoc, old)
-        self._origin = self._bound()
-        try:
-            project = Preparation.open(self._origin, config=self.optdoc.config(old),
-                                       same_document=True)
-            project.models = self.chain.models  # the folder of models it may use, as before
-            lost = False
-        except DocError:
-            project = self.chain.opened(self.optdoc, self._origin, None, self.work / "optdoc")
-        self.prepared_project = project
-        self.cleanup.project = self.prepared_project
-        self.optdoc.close(old)
-        self._stale.discard("optdoc")
-        self._note = self.w("chain_rebound") if lost else ""
+    def _bring(self, target: Stage) -> list[Opened]:
+        """Open every step in use up to ``target`` that is not open on what the steps before
+        it give now, in their order, each with what it held (its project's configuration
+        document, else the chain document's); a step whose rule refuses what it held starts
+        anew.  Off the window's thread: nothing here touches a panel."""
+        pending: dict[str, Any] = {}
+        opened: list[Opened] = []
+        for stage in self.stages:
+            if stage.name in self.used:
+                basis = self._basis(stage, pending)
+                if stage.project is None or stage.basis != basis:
+                    given = self._given(stage, pending)
+                    held = (stage.adapter.config(stage.project) if stage.project is not None
+                            else self.chain.configs.get(stage.name))
+                    folder = self.work / stage.name
+                    anew = False
+                    try:
+                        project = self.chain.opened(stage.adapter, given, held, folder)
+                    except DocError as e:
+                        if e.kind != "config-mismatch" or held is None:
+                            raise
+                        project, anew = self.chain.opened(stage.adapter, given, None, folder), True
+                    pending[stage.name] = project
+                    opened.append(Opened(stage, project, given, basis,
+                                         list(stage.adapter.dropped(project)), anew))
+            if stage is target:
+                break
+        return opened
+
+    def _put(self, opened: list[Opened]) -> None:
+        """Put the steps opened anew in place: in their panels (made the first time), the
+        old projects closed; and say what became of what a person had decided in them."""
+        notes = []
+        for done in opened:
+            stage, old = done.stage, done.stage.project
+            decided = old is not None and registry.by_person(stage.adapter, old)
+            stage.project, stage.given, stage.basis = done.project, done.given, done.basis
+            self._stale.discard(stage.name)
+            if not stage.panels:
+                self._make_panels(stage)
+            else:
+                for panel in stage.panels:
+                    panel.project = done.project
+                    if hasattr(panel, "show_project"):
+                        panel.show_project()
+            if old is not None:
+                stage.adapter.close(old)
+            if decided and done.anew:
+                notes.append(self.w("chain_anew", step=stage.name))
+            elif decided and done.dropped:
+                pages = ", ".join(str(n + 1) for n in done.dropped)
+                notes.append(self.w("dropped_pages", step=stage.name, pages=pages))
+            elif decided:
+                notes.append(self.w("kept_decisions", step=stage.name))
+        if opened:
+            self._note = " ".join(notes)
         self.status.setText(self._note)
 
-    def _key(self) -> bytes:
-        """What the steps after optdoc get, named: optdoc's configuration document as it
-        is now where optdoc is in use, else that it is off and what was handed on."""
-        if "optdoc" not in self.used:
-            return b"off|typdoc" if self._origin != self.chain.original else b"off"
-        return documents.document_bytes(self.optdoc.config(self.prepared_project))
-
-    def _remake(self, _previous: Any) -> tuple[Any, list[int], bytes, Path, bool]:
-        """What optdoc gives as it is now (its PDF as its plans are, or what it was
-        handed where it is off), and ocrdoc opened on it with what it held (its
-        configuration document so far, else the chain's): the new project, the pages that
-        lost a person's decisions, what it was made from (by name and as a file), and
-        whether ocrdoc had to start anew (what it held belongs to another file: optdoc
-        was switched off, and what it was handed carries no frames).  A new folder each
-        time, so that the old project can still be closed cleanly."""
-        self._round += 1
-        key = self._key()
-        if "optdoc" in self.used:
-            folder = self.work / "optdoc" / str(self._round)
-            pdf = self.optdoc.write(self.prepared_project, folder, self.chain.original.stem,
-                                    None)["document"]
-        else:
-            pdf = self._origin
-        held = (self.ocrdoc.config(self.read_project) if self.read_project is not None
-                else self.chain.configs.get("ocrdoc"))
-        anew = False
+    def _make_panels(self, stage: Stage) -> None:
+        """A step's panels, in the place of its placeholders."""
+        if not hasattr(stage.adapter, "panels"):
+            return
+        made = list(stage.adapter.panels(stage.project, self.w, self._work_of_panel))
+        current = self.tabs.currentIndex()
+        self.tabs.blockSignals(True)
         try:
-            project = self.chain.opened(self.ocrdoc, pdf, held, self.work / "ocrdoc")
-        except DocError as e:
-            if e.kind != "config-mismatch" or held is None:
-                raise
-            project, anew = self.chain.opened(self.ocrdoc, pdf, None, self.work / "ocrdoc"), True
-        return project, self.ocrdoc.dropped(project), key, pdf, anew
-
-    def _swap(self, project: Any, dropped: list[int], key: bytes, pdf: Path,
-              anew: bool) -> None:
-        """Put the new ocrdoc project in place of the old one, in every panel, and say what
-        became of the person's decisions."""
-        old, self.read_project, self._prepared_key = self.read_project, project, key
-        self._read_source, self._read_on_optdoc = pdf, not key.startswith(b"off")
-        self._stale.discard("ocrdoc")
-        for name in ("filters", "areas", "text"):
-            panel = getattr(self, name, None)
-            if panel is not None:
-                panel.project = project
-        if old is not None:
-            self.ocrdoc.close(old)
-            pages = ", ".join(str(n + 1) for n in dropped)
-            self._note = (self.w("chain_anew") if anew
-                          else self.w("dropped_pages", pages=pages) if dropped
-                          else self.w("kept_decisions"))
-            if "ocrdoc" not in self.used and not (anew or dropped):
-                self._note = ""  # nothing of ocrdoc's is in use, and nothing of it went
-            self.status.setText(self._note)
-
-    def _step_of_tab(self) -> str:
-        """The step the open tab belongs to."""
-        return self._tab_steps[self.tabs.currentIndex()]
-
-    def _later_step(self) -> tuple[Any, Any] | None:
-        """The step after ocrdoc whose tab is open, with its adapter; None for another."""
-        name = self._step_of_tab()
-        return next(((step, made) for step, made in self.after_ocrdoc if step.name == name),
-                    None)
-
-    def _read_key(self) -> bytes:
-        """What the steps after ocrdoc get, named: ocrdoc's configuration document as it
-        is now (or that ocrdoc is off), with what ocrdoc itself was made on."""
-        if "ocrdoc" not in self.used:
-            return self._prepared_key + b"|off"
-        return self._prepared_key + b"|" + documents.document_bytes(
-            self.ocrdoc.config(self.read_project))
-
-    def _remake_later(self, step: Any, made: Any) -> tuple[Any, bytes]:
-        """What the step before gives as it stands (ocrdoc's result where ocrdoc is in
-        use, else what ocrdoc would have got: optdoc's PDF or the original), and the later
-        step opened on it with what it held (its configuration document so far, else the
-        chain's)."""
-        self._round += 1
-        key = self._read_key()
-        if "ocrdoc" in self.used:
-            folder = self.work / "ocrdoc" / str(self._round)
-            pdf = self.ocrdoc.write(self.read_project, folder, self.chain.original.stem,
-                                    None)["document"]
-        else:
-            pdf = self._read_source
-        old = self.later_projects[step.name]
-        held = made.config(old) if old is not None else self.chain.configs.get(step.name)
-        return self.chain.opened(made, pdf, held, self.work / step.name), key
-
-    def _swap_later(self, step: Any, made: Any, project: Any, key: bytes) -> None:
-        """Put the later step's new project in place, its panel made at the first time."""
-        old = self.later_projects[step.name]
-        self.later_projects[step.name], self.later_keys[step.name] = project, key
-        self._stale.discard(step.name)
-        panel = self.later_panels.get(step.name)
-        if panel is None:
-            panel = made.panel(project, self.w)
-            panel.changed.connect(lambda: self._worked_in(step.name, 0))
-            placeholder = self.placeholders[step.name]
-            index = self.tabs.indexOf(placeholder)
-            label = self.tabs.tabText(index)
-            self.tabs.blockSignals(True)
-            try:
+            for index, panel in zip(stage.tabs, made, strict=True):
+                if hasattr(panel, "changed"):
+                    panel.changed.connect(lambda *_a, name=stage.name: self._worked_in(name))
+                label = self.tabs.tabText(index)
                 self.tabs.removeTab(index)
                 self.tabs.insertTab(index, panel, label)
-                self.tabs.setCurrentIndex(index)
-            finally:
-                self.tabs.blockSignals(False)
-            self.later_panels[step.name] = panel
-        else:
-            panel.project = project
-            panel.show_project()
-        if old is not None:
-            made.close(old)
+            self.tabs.setCurrentIndex(current)
+        finally:
+            self.tabs.blockSignals(False)
+        stage.panels = made
 
-    def _commit_later(self) -> None:
-        """Take what was typed into the later steps' panels into their projects."""
-        for panel in self.later_panels.values():
-            panel.commit()
+    def _work_of_panel(self, job: Callable[[], object], then: Callable[[], None],
+                       status: str) -> None:
+        """Work a panel asks for (reading a page, finding its areas), off the window's
+        thread, with what it is doing in the status line; then the panel goes on."""
+        self.status.setText(status)
+        self._run(job, lambda _r: self._done(then))
+
+    def _stage_of_tab(self) -> Stage | None:
+        """The step the open tab belongs to."""
+        index = self.tabs.currentIndex()
+        return self._tab_stage[index] if 0 <= index < len(self._tab_stage) else None
 
     def _show(self, n: int) -> None:
-        """Show page ``n`` in the tab that is open; a later step's tab after a change in
-        optdoc first gets what optdoc gives now, and a step after ocrdoc ocrdoc's result."""
+        """Show page ``n`` in the tab that is open, its step first brought up to what the
+        steps before it give now."""
         if n < 0:
             return
-        self.text.commit()
-        self._commit_later()
-        name = self._step_of_tab()
-        if name not in self.used:  # no tab of a step in use is open
+        self._commit_panels()
+        stage = self._stage_of_tab()
+        if stage is None or stage.name not in self.used:  # no tab of a step in use is open
             self._refresh()
             return
-        if name != "optdoc" and self._key() != self._prepared_key:
-            self.status.setText(self.w("preparing"))
+        if not self._current(stage):
+            self.status.setText(self.w("bringing", step=stage.name))
 
-            def then(made: tuple[Any, list[int], bytes, Path, bool]) -> None:
-                self._swap(*made)
+            def then(opened: list[Opened]) -> None:
+                self._put(opened)
                 self._show(n)
 
-            self._run(lambda: self._remake(self.read_project), then)
+            self._run(lambda: self._bring(stage), then)
             return
-        self._stale.discard("ocrdoc")  # it stands on what optdoc gives now
-        later = self._later_step()
-        if later is not None and self.later_keys.get(later[0].name) != self._read_key():
-            step, made = later
-            self.status.setText(self.w("describing"))
-
-            def described(result: tuple[Any, bytes]) -> None:
-                self._swap_later(step, made, *result)
-                self.status.setText(self._note)
-                self._refresh()
-
-            self._run(lambda: self._remake_later(step, made), described)
-            return
-        if later is not None:
-            self._stale.discard(later[0].name)
+        self._stale.discard(stage.name)  # it stands on what the steps before it give now
         self._show_now(n)
 
     def _show_now(self, n: int) -> None:
-        """Show page ``n`` in the tab that is open."""
+        """Show page ``n`` in the tab that is open (a panel of the whole document shows
+        that)."""
         self._mark_pages()
         self._refresh()
         current = self.tabs.currentWidget()
-        if current is self.text:
-            self.text.show_page(n)
-        elif current is self.areas:
-            self.areas.show_page(n)
-        elif current is self.filters:
-            self.filters.show_page(n)
-        elif current is self.cleanup:
-            self.cleanup.show_page(n)
-        # a later step's panel shows the whole document, not a page
+        if hasattr(current, "show_page"):
+            current.show_page(n)
+
+    def _corrected(self) -> set[int]:
+        """The pages a person corrected, in any step that says so."""
+        found: set[int] = set()
+        for stage in self.stages:
+            if stage.project is not None and hasattr(stage.adapter, "corrected"):
+                found |= set(stage.adapter.corrected(stage.project))
+        return found
 
     def _mark_pages(self) -> None:
         """Mark the pages whose text was corrected."""
-        for n, page in enumerate(self.read_project.pages):
-            key = "page_corrected" if page.correction is not None else "page"
+        corrected = self._corrected()
+        for n in range(self.pages.count()):
             item = self.pages.item(n)
             if item is not None:
-                item.setText(self.w(key, number=n + 1))
+                item.setText(self.w("page_corrected" if n in corrected else "page",
+                                    number=n + 1))
 
-    def _worked_in(self, name: str, _n: int) -> None:
+    def _worked_in(self, name: str, *_given: object) -> None:
         """Something changed in a step: the steps in use after it are to be made anew."""
         self.changed = True
         self._stale |= self._later_than(name)
         self._refresh()
 
+    def _commit_panels(self) -> None:
+        """Take what was typed into the panels into their projects."""
+        for stage in self.stages:
+            for panel in stage.panels:
+                if hasattr(panel, "commit"):
+                    panel.commit()
+
     def configs(self) -> dict[str, dict[str, Any]]:
-        """The configuration documents of the steps as the window holds them, of the steps
-        in use and of those switched off that hold something to keep (a person's
-        decisions, or what the chain document held).  ocrdoc's is as it stands where the
-        window opened it on what optdoc gives now, else what it held (the person did not
-        turn to its tabs after a change in optdoc: the chain then brings it over by the
-        same rule), and none where what it held cannot be brought over (optdoc was
-        switched off since: ocrdoc then starts anew); a later step's as its tab left it,
-        else the chain's."""
-        self.text.commit()
-        self._commit_later()
+        """The configuration documents of the steps as the window holds them: of the steps
+        in use, and of those switched off that hold something to keep (a person's
+        decisions, or what the chain document held).  A step's document is as its project
+        stands, else as the chain document had it; where what it stood on changed since,
+        the chain brings it over by the step's own rule, as the window would have."""
+        self._commit_panels()
         found: dict[str, dict[str, Any]] = {}
         held = self.chain.configs
-        if self.bound_project is not None and ("typdoc" in self.used or "typdoc" in held):
-            found["typdoc"] = self.typdoc.config(self.bound_project)
-        if "optdoc" in self.used or "optdoc" in held \
-                or registry.by_person(self.optdoc, self.prepared_project):
-            found["optdoc"] = self.optdoc.config(self.prepared_project)
-        fits = self._read_on_optdoc == ("optdoc" in self.used) or not self._read_on_optdoc
-        if fits and ("ocrdoc" in self.used or "ocrdoc" in held
-                     or registry.by_person(self.ocrdoc, self.read_project)):
-            found["ocrdoc"] = self.ocrdoc.config(self.read_project)
-        for step, made in self.chain.steps:
-            if step.name in ("typdoc", "optdoc", "ocrdoc"):
-                continue
-            project = self.later_projects.get(step.name)
-            if project is not None:
-                found[step.name] = made.config(project)
-            elif step.name in held:
-                found[step.name] = held[step.name]
+        for stage in self.stages:
+            if stage.project is not None:
+                if stage.name in self.used or stage.name in held \
+                        or registry.by_person(stage.adapter, stage.project):
+                    found[stage.name] = stage.adapter.config(stage.project)
+            elif stage.name in held:
+                found[stage.name] = held[stage.name]
         return found
 
     # -- work off the window's thread ----------------------------------------------------------
@@ -604,17 +567,6 @@ class ChainWindow(QMainWindow):
             self._pending = None
             self._run(job, then)
 
-    def _read_page(self, n: int, then: Callable[[], None]) -> None:
-        """Read page ``n`` (for the text panel), then call back."""
-        self.status.setText(self.w("reading_page", number=n + 1,
-                                   total=len(self.read_project.pages)))
-        self._run(lambda: self.read_project.read(n), lambda _r: self._done(then))
-
-    def _find_regions(self, n: int, then: Callable[[], None]) -> None:
-        """Find the areas of page ``n`` (for the areas panel), then call back."""
-        self.status.setText(self.w("finding_regions", number=n + 1))
-        self._run(lambda: self.read_project.regions(n), lambda _r: self._done(then))
-
     def _done(self, then: Callable[[], None]) -> None:
         """A page's work is done: the status line says again what became of the person's
         decisions (if anything did), and the panel goes on."""
@@ -624,13 +576,13 @@ class ChainWindow(QMainWindow):
     # -- the ways out --------------------------------------------------------------------------
     def apply(self) -> None:
         """Close with "applied": the results are to be written."""
-        self.text.commit()
+        self._commit_panels()
         self.outcome = "applied"
         self.close()
 
     def later(self) -> None:
         """Close with "saved": the chain document is to be written."""
-        self.text.commit()
+        self._commit_panels()
         self.outcome = "saved"
         self.close()
 
@@ -642,8 +594,8 @@ class ChainWindow(QMainWindow):
     def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
         """Closing the window without a choice cancels; after changes, ask first."""
         if self.outcome is None:
-            self.text.commit()
-            worked = self.changed or bool(self.read_project.corrected)
+            self._commit_panels()
+            worked = self.changed or bool(self._corrected())
             if worked and not self.synchronous and QMessageBox.question(
                     self, self.w("discard_title"), self.w("discard_text")) \
                     != QMessageBox.StandardButton.Yes:
@@ -656,14 +608,10 @@ class ChainWindow(QMainWindow):
 
     def release(self) -> None:
         """Close the steps' projects."""
-        if self.bound_project is not None:
-            self.typdoc.close(self.bound_project)
-        self.optdoc.close(self.prepared_project)
-        if self.read_project is not None:
-            self.ocrdoc.close(self.read_project)
-        for step, made in self.after_ocrdoc:
-            if self.later_projects[step.name] is not None:
-                made.close(self.later_projects[step.name])
+        for stage in self.stages:
+            if stage.project is not None:
+                stage.adapter.close(stage.project)
+                stage.project = None
 
     # -- the self-test of the standalone program ------------------------------------------------
     def self_test(self) -> None:

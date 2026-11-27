@@ -16,7 +16,7 @@ identifying information) and signing the document are other tasks, for other pro
 They take what docrepro gives: ocrdoc's reading, and the finished document (TimeAttest
 signs it).
 
-Every step keeps the same contract (``docs/family-design.md`` in optdoc): it has a
+Every step keeps the same contract (``docs/family-design.md``): it has a
 configuration document of its own (``<stem>.<tool>.json``), from which it makes its
 result again byte for byte, and which the PDF it writes carries.  docrepro reaches each
 step through an :class:`Adapter`.  optdoc's and ocrdoc's are here; typdoc and tagdoc bring
@@ -42,6 +42,20 @@ a picture.  ocrdoc reads a picture and hands it on as it came, with its reading 
 tagdoc writes its description into the picture where the picture's format has a place for
 one, and beside it where it has none.  So a picture goes through every step as a picture
 when typdoc is left out, and as a PDF when it is not.
+
+**The window.**  A step brings its tabs into docrepro's window through two members of its
+adapter, which docrepro looks for and does not demand: ``tabs(words)``, the names of its
+tabs (known before its project is open), and ``panels(project, words, run)``, a panel for
+each.  A panel holds the project it shows in ``project`` (the window puts another there
+when the step is opened anew), says ``changed`` when a person changes something, and shows
+a page (``show_page(n)``) or the whole document (``show_project()``); ``commit()``, where
+it has one, takes what was typed into the project.  ``run(job, then, status)`` does work
+off the window's thread (reading a page, finding areas) with a word for the status line.
+An adapter may also say which pages a person corrected (``corrected(project)``), for the
+marks on the pages.  The window opens a step when its tab is first shown, on what the step
+before gives as it stands, and again whenever that changed: with what the step held, so
+that the step's own rule decides what of a person's decisions stays (the origin and frame
+of every page, :mod:`doccor.origins`).  No step is named in the window.
 
 **Models.**  A step may do better with a model, an optional download (:mod:`doccor.models`).
 An adapter says so with two members docrepro looks for and does not demand: ``catalogue``,
@@ -217,6 +231,14 @@ class OptdocAdapter:
     def close(self, project: Any) -> None:
         project.close()
 
+    def tabs(self, words: Any) -> list[str]:
+        return [words("tab_optdoc")]
+
+    def panels(self, project: Any, words: Any, run: Any) -> list[Any]:
+        from optdoc.gui.cleanup_panel import CleanupPanel
+
+        return [CleanupPanel(project, words)]
+
 
 class OcrdocAdapter:
     """ocrdoc: what optdoc gave in (a PDF, or a picture); the same pages with their text
@@ -264,6 +286,31 @@ class OcrdocAdapter:
 
     def close(self, project: Any) -> None:
         project.close()
+
+    def corrected(self, project: Any) -> list[int]:
+        return list(project.corrected)
+
+    def tabs(self, words: Any) -> list[str]:
+        return [words("tab_ocrdoc_filters"), words("tab_ocrdoc_regions"),
+                words("tab_ocrdoc_text")]
+
+    def panels(self, project: Any, words: Any, run: Any) -> list[Any]:
+        """Its filters, its areas and its text; finding the areas of a page and reading a
+        page are done off the window's thread, on the project the panel holds then."""
+        from ocrdoc.gui.filters_panel import FiltersPanel
+        from ocrdoc.gui.regions_panel import RegionsPanel
+        from ocrdoc.gui.text_panel import TextPanel
+
+        def find(n: int, then: Callable[[], None]) -> None:
+            run(lambda: areas.project.regions(n), then, words("finding_regions", number=n + 1))
+
+        def read(n: int, then: Callable[[], None]) -> None:
+            run(lambda: text.project.read(n), then,
+                words("reading_page", number=n + 1, total=len(text.project.pages)))
+
+        areas = RegionsPanel(project, words, find)
+        text = TextPanel(project, words, read)
+        return [FiltersPanel(project, words), areas, text]
 
 
 _BUILT_IN: dict[str, Callable[[], Adapter]] = {"optdoc": OptdocAdapter, "ocrdoc": OcrdocAdapter}

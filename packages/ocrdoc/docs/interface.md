@@ -1,6 +1,6 @@
 # ocrdoc's command line as an interface
 
-**Interface 3**, since ocrdoc 0.4.0. This is what a program may
+**Interface 4**, since ocrdoc 0.5.0. This is what a program may
 rely on when it calls ocrdoc, whatever language it is written in: a records app, a pseudonymiser,
 a script, docrepro.
 
@@ -9,6 +9,16 @@ that breaks it: a field or a kind of error removed or renamed, a meaning changed
 interface, new fields, new options and new kinds of error may come; a caller ignores fields it
 does not know and treats an unknown kind of error like any other (its message says what
 happened). Releases are tagged; pin a tag, not a branch.
+
+**From interface 3: every page says where it came from.** The configuration document is version 2
+(version 1 is no longer read): every page of `input` names its `origin` as well as its frame. A
+document made on another file is taken page by page where a page comes from the same place and
+lies as it lay (below: a picture and the PDF typdoc bound it into, more contrast in optdoc,
+optdoc switched off for a page it did not move); before, an input without frames had to be the
+very file the document named. A file none of whose pages comes from where the document's did is
+another document (`config-mismatch`), however alike its pages lie: before, two letters that
+optdoc had prepared without moving their pages had the same frames, and a correction made on the
+one was taken into the other.
 
 **From interface 2:** ocrdoc reads a picture as well as a PDF, and **a picture stays a picture**:
 no step of docrepro forces a file type. The picture is handed on as it came, and its reading lies
@@ -240,12 +250,13 @@ The window closes in one of three ways:
 caller waits until it is closed. It keeps no settings of its own and writes nothing outside
 `<folder>` (checked with empty home and temporary folders).
 
-## The configuration document: `ocrdoc-config`, version 1
+## The configuration document: `ocrdoc-config`, version 2
 
 ```json
-{"format": "ocrdoc-config", "version": 1, "made_with": "ocrdoc 0.4.0",
+{"format": "ocrdoc-config", "version": 2, "made_with": "ocrdoc 0.5.0",
  "input": {"sha256": "…", "bytes": 245678, "suffix": ".pdf",
-           "pages": [{"width": 595.276, "height": 841.89, "frame": "…"}]},
+           "pages": [{"width": 595.276, "height": 841.89, "frame": "…",
+                      "origin": {"sha256": "…", "index": 0}}]},
  "options": {"reader": "auto", "languages": null, "tables": true, "structure": true,
              "dpi": 300, "cells": true, "areas": true},
  "reader": "rapidocr",
@@ -262,7 +273,8 @@ caller waits until it is closed. It keeps no settings of its own and writes noth
 ```
 
 Everything that decides the result, and nothing else: no paths, no times. `input` names the file
-it belongs to by its SHA-256, and every page's size and frame. `options` are the settings. Per
+it belongs to by its SHA-256, and every page's size, frame (`null` where no step moved the page)
+and origin (below). `options` are the settings. Per
 page: its `filters` (`null` for a page with a text layer of its own; `by` "auto" as ocrdoc
 suggested them, "person" once a person chose them), whether it was read by `ocr` (`null`: not
 read yet), the `words` OCR read (text, box in points, confidence), its `layout` (`null`: not found
@@ -288,19 +300,31 @@ read when the result is made. The tests check the bytes for `run`, `run --config
 document and with the PDF, and `edit`, and for pictures of five types.
 
 **When the step before changed.** A person may go back to optdoc and change a page (more
-contrast); optdoc's PDF, ocrdoc's input, is then another file, and the document's SHA-256 no
-longer fits. It is not thrown away. optdoc records every page's **frame** in its own document,
-which its PDF carries (`optdoc.json`; from the version of optdoc that comes with ocrdoc on): a fingerprint of the page's geometry (its size, and the
-turning, unwarping and straightening that made it). Where a page's frame is the same as the one
-the document recorded, what a person decided on it stays (the filters they chose, the areas they
-drew, a table grid they set, the text they corrected), and what a machine found is found again
-(OCR reads the page anew). Where the frame changed, the page's decisions no longer fit and go;
-the answer names the page in `dropped`. An input without frames must be the very file the
-document names (`config-mismatch` otherwise).
+contrast), or switch a step before ocrdoc on or off; ocrdoc's input is then another file, and
+the document's SHA-256 no longer fits. It is not thrown away. Every page is known by two things:
+
+- its **origin**: the original file the page shows (its SHA-256) and which of that file's pages
+  it is (`index`, from 0). Where optdoc prepared the input, optdoc's document names it; else
+  ocrdoc sees it in the input itself, as doccor's `origins` does: a picture is its own original, a
+  page of a PDF the file it names as its source (as medRDS 9.5 binds a picture that is no JPEG),
+  else the JPEG it is and nothing else (as it binds a JPEG), else the PDF and the page's number;
+- its **frame**: where optdoc moved the page, a fingerprint of its geometry (its size, and the
+  turning, unwarping and straightening that made it), as optdoc's document names it; `null` for
+  a page no step moved.
+
+A page that comes from the same origin and has the same frame (and, without a frame, the same
+size to a hundredth of a point) keeps what a person decided on it (the filters they chose, the
+areas they drew, a table grid they set, the text they corrected), and what a machine found is
+found again (OCR reads the page anew). So more contrast in optdoc keeps it; so does a picture
+handed on as the PDF typdoc bound it into, or the other way round; so does optdoc switched off
+for a page it did not move. A page that lies otherwise loses its decisions; the answer names it
+in `dropped`. A file none of whose pages comes from where the document's did is another document
+and is refused (`config-mismatch`): two letters of the same size never share their decisions.
 
 A picture carries nothing, so optdoc's document lies beside the picture optdoc wrote
-(`<stem>.optdoc.json`, in the folder optdoc wrote both into), and ocrdoc reads the frames from
-there. It takes the document beside a picture at its word, as it does the one inside a PDF.
+(`<stem>.optdoc.json`, in the folder optdoc wrote both into), and ocrdoc reads the frames and
+origins from there. It takes the document beside a picture at its word, as it does the one inside
+a PDF.
 
 ## Failures
 
@@ -324,7 +348,7 @@ what the message is made from, never a path or content.
 | `no-reader` | the engine asked for is not installed | `reader` |
 | `reader-failed` | the engine failed on a page | `reader` |
 | `bad-config` | the document is no readable JSON, not of this version, has no entry for each page, or a value of the wrong kind | `reason`: `json`, `format`, `page`, `field` |
-| `config-mismatch` | the document belongs to another file, and no frame says the pages are the same | |
+| `config-mismatch` | the document belongs to another document: none of its pages comes from where the document's did | |
 | `not-ocr` | a correction of a page that was not read by OCR (as a library) | `page` |
 | `same-as-source` | the document written would replace the one that was read (a picture keeps its name, so `<folder>` must not be its own) | |
 | `unwritable` | the folder cannot take the results | |
@@ -409,4 +433,4 @@ laid on the same boxes. The tests check this with PDFKit (on macOS) and MuPDF.
 ## Licence
 
 ocrdoc is free software under the GNU Affero General Public License 3.0 or later; its source is at
-https://github.com/fre-ms/ocrdoc. A program that ships it names it and where its source is.
+https://github.com/fre-ms/docrepro (folder `packages/ocrdoc`). A program that ships it names it and where its source is.

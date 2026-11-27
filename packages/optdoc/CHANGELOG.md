@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.12.0 (2026-11-27)
+
+Interface 6; `optdoc-config` version 4 (version 3 is no longer read).
+
+### Added
+
+- **Every page says where it came from**: `input.pages[].origin` (doccor's `origins`), the
+  original file the page shows and which of its pages it is.
+
+### Changed
+
+- **A document of another file is taken where that file shows the same pages**, every page of
+  the same origin and size: a picture and the PDF typdoc bound it into. A person's plans stay,
+  optdoc's own are suggested anew (`Project.rebased`). This needs no caller to vouch for it any
+  more, so docrepro's chain takes it too, not only its window.
+- **A page nothing moves has no frame** (`null`), as the page of the original has none, so that
+  ocrdoc keeps what a person decided on it when optdoc is switched off; and it **keeps the size of
+  the page it came as**, to the point (its size followed its rounded pixels before, a tenth of a
+  point off).
+- optdoc is a package of docrepro's repository (`packages/optdoc`); its history came along.
+
+### Removed
+
+- `Project.open(…, same_document=True)`: the origins say it.
+
 ## 0.11.0 (2026-11-27)
 
 Interface 5 and `optdoc-config` version 3 stay; one thing is added for programs that use optdoc in

@@ -11,21 +11,11 @@ from doccor.gui import words as _words
 from doccor.gui.words import LANGUAGES, Words, system_language
 
 WORDS: dict[str, tuple[str, str]] = {  # key: (English, German)
-    "title": ("{tool}: {name}", "{tool}: {name}"),
-    "page": ("Page {number}", "Seite {number}"),
-    "page_corrected": ("Page {number} ✎", "Seite {number} ✎"),
     "tab_filters": ("1 Filters", "1 Filter"),
     "tab_regions": ("2 Areas", "2 Bereiche"),
     "tab_text": ("3 Check the text", "3 Text prüfen"),
-    "apply": ("Apply", "Übernehmen"),
-    "later": ("Save and continue later", "Speichern und später weitermachen"),
-    "cancel": ("Cancel", "Abbrechen"),
-    "discard_title": ("Discard the work?", "Arbeit verwerfen?"),
-    "discard_text": ("Nothing will be written. Discard what was done in this window?",
-                     "Es wird nichts geschrieben. Das in diesem Fenster Getane verwerfen?"),
     "reading_page": ("Reading page {number} of {total} …", "Lese Seite {number} von {total} …"),
     "read_all": ("Every page read.", "Alle Seiten gelesen."),
-    "failed": ("That did not work: {error}", "Das ging nicht: {error}"),
     # filters
     "filters_page": ("The page as it is (it stays so in the document)",
                      "Die Seite, wie sie ist (so bleibt sie im Dokument)"),
