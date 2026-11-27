@@ -11,10 +11,10 @@ hand, or to be made anew because a step before it changed.  A step that needs an
 switched off is kept, and back when the step is switched on again.
 
 typdoc, which binds a picture into a PDF, has no tab: it has nothing to decide.  For a PDF
-it has nothing to do.  As the tools stand, a picture goes on as a PDF, through typdoc or
-through optdoc (which makes one of a picture it is handed): of the two, the one that is on
-alone cannot be switched off.  Switching typdoc hands optdoc another file, so optdoc
-starts anew then, and the status line says so.
+it has nothing to do.  For a picture it stays on in this window: the steps after optdoc
+read PDFs only, as the tools stand, and the window is built on them.  (A picture that is to
+stay a picture is prepared on the command line, with typdoc and those steps left out, or
+in optdoc's own window.)
 
 The steps work as in their own windows; their panels are theirs.  What joins them: when
 the person turns from optdoc's tab to a later one after changing a page there, optdoc's
@@ -98,12 +98,12 @@ class ChainWindow(QMainWindow):
         self.optdoc, self.ocrdoc = adapters["optdoc"], adapters["ocrdoc"]
         self.typdoc: Any = adapters.get("typdoc")  # None where it is not installed
         self.used: set[str] = set(chain.used)
-        # a picture goes on as a PDF, through typdoc or through optdoc; a PDF needs neither
+        # in this window a picture goes on as a PDF, through typdoc; a PDF needs none
         self.photo = chain.original.suffix.lower() != ".pdf"
         if not self.photo:
             self.used.discard("typdoc")
-        elif not {"typdoc", "optdoc"} & self.used:
-            self.used.add("typdoc" if self.typdoc is not None else "optdoc")
+        elif self.typdoc is not None:
+            self.used.add("typdoc")
         self.bound_project: Any = None
         if self.typdoc is not None and self.photo:
             self.bound_project = chain.opened(self.typdoc, chain.original,
@@ -262,10 +262,7 @@ class ChainWindow(QMainWindow):
             switch.blockSignals(True)
             switch.setChecked(name in self.used)
             switch.blockSignals(False)
-            # of typdoc and optdoc, the one that alone makes a PDF of a picture stays on
-            other = {"typdoc": "optdoc", "optdoc": "typdoc"}.get(name)
-            fixed = (self.photo and other is not None and name in self.used
-                     and other not in self.used)
+            fixed = name == "typdoc" and self.photo  # it makes the PDF the window works on
             switch.setEnabled(state not in ("missing", "nothing") and not fixed
                               and unmet is None)
             sign = OFF if state in ("missing", "nothing", "off") else IN_USE
@@ -304,10 +301,8 @@ class ChainWindow(QMainWindow):
                 self.used.discard(step.name)
         self.changed = True
         self._stale |= self._later_than(name)
-        if on and name not in ("typdoc", "optdoc"):
+        if on and name != "optdoc":
             self._stale.add(name)  # what it gets may have changed while it was off
-        if name == "typdoc":
-            self._rebind()
         self._stale &= self.used
         self._refresh()
         if not self._leave_closed_tab():
@@ -334,20 +329,6 @@ class ChainWindow(QMainWindow):
         made: Path = self.typdoc.write(self.bound_project, folder, self.chain.original.stem,
                                        None)["document"]
         return made
-
-    def _rebind(self) -> None:
-        """typdoc was switched: optdoc is handed another file and starts anew on it (its
-        plans are of the file it had); the status line says so where a person's went."""
-        old = self.prepared_project
-        lost = registry.by_person(self.optdoc, old)
-        self._origin = self._bound()
-        self.prepared_project = self.chain.opened(self.optdoc, self._origin, None,
-                                                  self.work / "optdoc")
-        self.cleanup.project = self.prepared_project
-        self.optdoc.close(old)
-        self._stale.discard("optdoc")
-        self._note = self.w("chain_rebound") if lost else ""
-        self.status.setText(self._note)
 
     def _key(self) -> bytes:
         """What the steps after optdoc get, named: optdoc's configuration document as it

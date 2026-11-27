@@ -160,14 +160,22 @@ class Chain:
 
     def check(self) -> None:
         """Raise "no-steps" when no step is in use, "step-needs" when a step in use needs
-        one that is not."""
+        one that is not: a step it names, or, for a step that reads PDFs handed a picture,
+        the step that makes a PDF of pictures."""
         if not self.used:
             raise DocreproError("no-steps")
+        binder = next((step.name for step in STEPS if step.makes_pdf), "typdoc")
+        is_pdf = self.original.suffix.lower() == ".pdf"
         for step, _adapter in self.steps:
-            if step.name in self.used:
-                for needed in step.needs:
-                    if needed not in self.used:
-                        raise DocreproError("step-needs", step=step.name, needs=needed)
+            if step.name not in self.used:
+                continue
+            for needed in step.needs:
+                if needed not in self.used:
+                    raise DocreproError("step-needs", step=step.name, needs=needed)
+            if step.makes_pdf:
+                is_pdf = True
+            elif step.needs_pdf and not is_pdf:
+                raise DocreproError("step-needs", step=step.name, needs=binder)
 
     def opened(self, adapter: Adapter, source: Path, config: dict[str, Any] | None,
                scratch: Path) -> Any:
@@ -240,13 +248,15 @@ class Chain:
         fresh.  Returns the answer of the command line."""
         out = Path(out)
         stem = self.original.stem
-        if (out / f"{stem}.pdf").resolve() == self.original.resolve():
+        if self.original.resolve() in ((out / f"{stem}.pdf").resolve(),
+                                       (out / self.original.name).resolve()):
             raise DocreproError("same-as-source")
         self.check()
         start = dict(self.configs if configs is None else configs)
         made: dict[str, dict[str, Any]] = {}
         report: list[dict[str, Any]] = []
         files: dict[str, Path] = {}
+        pages = 1
         with self.working(out) as work:
             source = self.original
             for step, adapter in self.steps:
@@ -260,6 +270,9 @@ class Chain:
                 try:
                     paths = adapter.write(project, folder, stem, _per_step(progress, step.name))
                     made[step.name] = adapter.config(project)
+                    counted = getattr(project, "pages", None)  # optdoc's and ocrdoc's say
+                    if counted is not None:
+                        pages = len(counted)
                     report.append({"tool": step.name, "used": True,
                                    "made_with": f"{step.name} {adapter.version}",
                                    "dropped": [n + 1 for n in adapter.dropped(project)]})
@@ -269,29 +282,36 @@ class Chain:
                 source = paths["document"]
             chain = documents.document_bytes(self.document(made))
             written = self._write(out, stem, source, chain, files)
-        with pymupdf.open(written["document"]) as finished:
-            pages = len(finished)
+        if written["document"].suffix.lower() == ".pdf":
+            with pymupdf.open(written["document"]) as finished:
+                pages = len(finished)
         return {**{k: str(v) for k, v in written.items()}, "pages": pages, "steps": report,
                 "not_installed": [s.name for s in STEPS
                                   if s.name not in {t.name for t, _a in self.steps}]}
 
-    def _write(self, out: Path, stem: str, pdf: Path, chain: bytes,
+    def _write(self, out: Path, stem: str, document: Path, chain: bytes,
                files: dict[str, Path]) -> dict[str, Path]:
-        """The results: the last step's PDF with the chain document inside, the steps'
-        other files (the reading, Markdown …) under the original's stem, the chain
-        document."""
-        doc = pymupdf.open(pdf)
-        try:
-            carried = [doc.embfile_get(name) for name in sorted(doc.embfile_names())
-                       if name.endswith(".json") and name != EMBEDDED]
-            if EMBEDDED in doc.embfile_names():
-                doc.embfile_del(EMBEDDED)
-            documents.embed(doc, EMBEDDED, chain,
-                            "docrepro chain: makes this document again from the original")
-            finished = documents.finished_pdf(doc, [*carried, chain], f"docrepro {__version__}")
-        finally:
-            doc.close()
-        written = {"document": out / f"{stem}.pdf", "config": out / f"{stem}{SUFFIX}"}
+        """The results: the document as the last step in use left it, the steps' other
+        files (the reading, Markdown …) under the original's stem, and the chain
+        document.  A PDF carries the chain document inside as well; a picture stays as
+        the step wrote it, byte for byte, with the chain document beside it alone."""
+        if document.suffix.lower() == ".pdf":
+            doc = pymupdf.open(document)
+            try:
+                carried = [doc.embfile_get(name) for name in sorted(doc.embfile_names())
+                           if name.endswith(".json") and name != EMBEDDED]
+                if EMBEDDED in doc.embfile_names():
+                    doc.embfile_del(EMBEDDED)
+                documents.embed(doc, EMBEDDED, chain,
+                                "docrepro chain: makes this document again from the original")
+                finished = documents.finished_pdf(doc, [*carried, chain],
+                                                  f"docrepro {__version__}")
+            finally:
+                doc.close()
+        else:
+            finished = document.read_bytes()
+        written = {"document": out / f"{stem}{document.suffix}",
+                   "config": out / f"{stem}{SUFFIX}"}
         try:
             written["document"].write_bytes(finished)
             written["config"].write_bytes(chain)

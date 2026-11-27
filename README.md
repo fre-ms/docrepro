@@ -12,7 +12,7 @@ It joins a family of tools, one tool for one step, each usable on its own:
 | order | tool | its step | status |
 |---|---|---|---|
 | 5 | [typdoc](https://github.com/fre-ms/typdoc) | changes the type, and nothing else: binds pictures into one PDF as medRDS says, each in it byte for byte | 0.2 |
-| 10 | [optdoc](https://github.com/fre-ms/optdoc) | makes the page faithful: upright, unwarped in its true proportions, evenly lit, in its colours | 0.9 |
+| 10 | [optdoc](https://github.com/fre-ms/optdoc) | makes the page faithful: upright, unwarped in its true proportions, evenly lit, in its colours; gives back the type it got | 0.10 |
 | 20 | [ocrdoc](https://github.com/fre-ms/ocrdoc) | recognises areas, text, tables and barcodes, and lays the text over the page | 0.3 |
 | 30 | semdoc | understands the text: medical terms and identifying information (through lexterm and lexident) | planned |
 | 40 | [tagdoc](https://github.com/fre-ms/tagdoc) | describes the document: title, kind, date, authors, the people it names with copies of their cards, written as medRDS says (XMP and the information dictionary, or a sidecar) | 0.2 |
@@ -22,7 +22,7 @@ What they share (configuration documents, the command line's manners, no network
 blocks) is [doccor](https://github.com/fre-ms/doccor)'s. Why the work is divided so, and the contract every
 step keeps: `docs/family-design.md` in optdoc.
 
-**Status: pre-alpha (0.5.0).**
+**Status: pre-alpha (0.6.0).**
 
 ## The chain and its document
 
@@ -77,8 +77,9 @@ docrepro run photo.heic --out results/ --without ocrdoc --without tagdoc   # pre
 `run` writes the last step's files under the original's name (`<name>.pdf` with ocrdoc's text layer and
 tagdoc's description, `<name>.reading.json`, `<name>.md`) and the chain document `<name>.docrepro.json`, and nothing anywhere else: what the steps make
 on the way goes into a hidden folder inside the results and is removed at once. `--without <step>` leaves a
-step out (a picture goes on as a PDF through typdoc, or through optdoc where typdoc is left out; with
-optdoc left out, ocrdoc reads the picture as typdoc bound it, unprepared). `edit`
+step out. A picture goes on as a PDF through typdoc; with typdoc left out it stays a picture (optdoc gives
+back the type it got), and the steps that read PDFs only (ocrdoc, tagdoc, as they stand) are left out with
+it. With optdoc left out, ocrdoc reads the picture as typdoc bound it, unprepared. `edit`
 opens one window with a tab for every panel of the steps (optdoc's preparation, ocrdoc's filters, areas and
 text, tagdoc's description) and, on the left, the steps themselves: each with a switch and what became of it
 (off; in use as suggested; changed by hand; to be made anew), a filled or an empty circle on its tabs.
@@ -125,7 +126,7 @@ faster-starting folder with `--onedir`. See [docs/sidecar.md](docs/sidecar.md).
 - **The file keeps its type.** No step is to force PDF: a picture will go through every step as a picture
   (optdoc writes the prepared picture in the format it came in, ocrdoc lays its reading beside it, tagdoc
   writes into the picture or a sidecar as medRDS says for the format). typdoc, the one step that changes
-  the type, is there; the other tools still read or write PDFs only where pictures are concerned. The
+  the type, is there, and optdoc keeps the type it is handed; ocrdoc and tagdoc still read PDFs only. The
   design: `docs/family-design.md` in optdoc.
 - Several pictures of one document through the whole chain (typdoc binds several on its own already).
 

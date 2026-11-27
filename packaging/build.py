@@ -194,19 +194,22 @@ def check(program: Path, models: Path | None = None) -> dict[str, object]:
         assert not _left(work, empty), _left(work, empty)
         checks["window"] = ("opened without a screen, every tab shown, applied, the same PDF, "
                             "nothing left behind")
+        status, zero, _, timings["typdoc run"] = _run(
+            [str(program), "typdoc", "run", str(photo), "--out", str(work / "s0")], env)
+        assert status == 0 and zero["pages"] == 1 and zero["bound"][0]["attached"] is False, zero
+        assert photo.read_bytes() in Path(zero["document"]).read_bytes()  # byte for byte
         status, one, _, timings["optdoc run"] = _run(
-            [str(program), "optdoc", "run", str(photo), "--out", str(work / "s1")], env)
-        assert status == 0 and one["cleaned_up"] == [1], one
+            [str(program), "optdoc", "run", zero["document"], "--out", str(work / "s1")], env)
+        assert status == 0 and one["cleaned_up"] == [1] and one["document"].endswith(".pdf"), one
         status, two, _, timings["ocrdoc run"] = _run(
             [str(program), "ocrdoc", "run", one["document"], "--out", str(work / "s2")], env)
         assert status == 0 and two["ocr_pages"] == [1] and two["carried"] == ["optdoc.json"], two
         status, three, _, timings["tagdoc run"] = _run(
             [str(program), "tagdoc", "run", two["document"], "--out", str(work / "s3")], env)
         assert status == 0 and three["problems"] == [], three
-        status, zero, _, timings["typdoc run"] = _run(
-            [str(program), "typdoc", "run", str(photo), "--out", str(work / "s0")], env)
-        assert status == 0 and zero["pages"] == 1 and zero["bound"][0]["attached"] is False, zero
-        assert photo.read_bytes() in Path(zero["document"]).read_bytes()  # byte for byte
+        status, kept, _, _ = _run(  # optdoc on the photo itself: the photo stays a photo
+            [str(program), "optdoc", "run", str(photo), "--out", str(work / "s1-kept")], env)
+        assert status == 0 and kept["document"].endswith("foto.jpg"), kept
         checks["steps one by one"] = ("typdoc, optdoc, ocrdoc and tagdoc through their own "
                                       "command lines")
         status, answer, _, _ = _run([str(program), "run", str(work / "fehlt.jpg")])
@@ -221,6 +224,21 @@ def check(program: Path, models: Path | None = None) -> dict[str, object]:
             "foto.docrepro.json", "foto.pdf"], list((work / "prepared").iterdir())
         assert not _left(work, empty), _left(work, empty)
         checks["steps left out"] = "prepared only: the PDF and the chain document, nothing else"
+        status, answer, _, timings["run, a picture kept"] = _run(
+            [str(program), "run", str(photo), "--out", str(work / "kept"), "--without",
+             "typdoc", "--without", "ocrdoc", "--without", "tagdoc"], env)
+        assert status == 0 and Path(answer["document"]).name == "foto.jpg", answer
+        assert Path(answer["document"]).read_bytes()[:3] == b"\xff\xd8\xff", "no JPEG"
+        assert sorted(p.name for p in (work / "kept").iterdir()) == [
+            "foto.docrepro.json", "foto.jpg"], list((work / "kept").iterdir())
+        status, answer, _, _ = _run(
+            [str(program), "run", str(photo), "--out", str(work / "refused"), "--without",
+             "typdoc"], env)
+        assert status == 2 and answer["error"] == "step-needs" \
+            and answer["details"] == {"step": "ocrdoc", "needs": "typdoc"}, answer
+        assert not _left(work, empty), _left(work, empty)
+        checks["a picture kept"] = ("without typdoc the photo stays a JPEG, prepared; the steps "
+                                    "that read PDFs say that they need typdoc")
         status, answer, _, _ = _run([str(program), "models", "list", "--models",
                                      str(work / "none")], env)
         listed = {m["name"]: m for m in answer.get("models", [])}

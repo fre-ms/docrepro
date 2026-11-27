@@ -27,12 +27,8 @@ WORDS: dict[str, tuple[str, str]] = {  # key: (English, German)
     "chain_person": ("in use, changed by hand", "in Gebrauch, von Hand geändert"),
     "chain_stale": ("in use, to be made anew", "in Gebrauch, neu zu machen"),
     "chain_missing": ("not installed", "nicht installiert"),
-    "chain_photo": ("a picture goes on as a PDF: through typdoc or through optdoc",
-                    "ein Bild geht als PDF weiter: durch typdoc oder durch optdoc"),
-    "chain_rebound": ("optdoc is handed another file now (typdoc was switched): it starts anew, "
-                      "and what was decided in it went.",
-                      "optdoc bekommt jetzt eine andere Datei (typdoc wurde umgeschaltet): es "
-                      "beginnt neu, und was darin entschieden war, ist verworfen."),
+    "chain_photo": ("in this window a picture goes on as a PDF",
+                    "in diesem Fenster geht ein Bild als PDF weiter"),
     "chain_needs": ("needs {needs}", "braucht {needs}"),
     "chain_off_tip": ("{step} is switched off (see the steps on the left).",
                       "{step} ist ausgeschaltet (siehe die Schritte links)."),

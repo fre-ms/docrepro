@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.6.0 (2026-11-27)
+
+A picture can stay a picture, with optdoc 0.10.0. Interface 3 and `docrepro-chain` version 2 stay.
+
+- **With typdoc left out, a picture stays a picture.** optdoc gives back the type it was handed
+  (a JPEG a JPEG, a HEIC a HEIC), and the result is that picture, as optdoc wrote it, with the
+  chain document beside it (a picture has no place for it). Until now optdoc made a PDF of a
+  picture it was handed.
+- **A step that reads PDFs only needs typdoc before it for a picture**, and the chain says so
+  before it does anything (`step-needs`: ocrdoc and tagdoc, as they stand). They are to learn to
+  take a picture.
+- **The window** works on PDFs: for a picture typdoc stays on there. optdoc can be switched
+  freely. A picture that is to stay one is prepared with `run`, or in optdoc's own window.
+- The standalone program is tried out with a photo that stays a photo.
+
 ## 0.5.0 (2026-11-27)
 
 Interface 3: one field renamed, in every tool of docrepro at once (typdoc 0.2.0, optdoc 0.9.0,

@@ -37,9 +37,10 @@ step that gets what it cannot take says so with its own error.
 **No step forces a file type.**  Only typdoc changes a document's type: it binds pictures
 into a PDF as medRDS says, and has nothing to do for an original that is a PDF (it is in
 use for pictures alone, unless it is left out).  The steps after it take what they are
-handed, typdoc's PDF or the original.  (As the tools stand, optdoc still makes a PDF of a
-picture it is handed, and ocrdoc and tagdoc read PDFs: a picture needs typdoc or optdoc
-to go on.  They are to learn to keep a picture a picture.)
+handed, typdoc's PDF or the original.  optdoc gives back the type it got: a picture stays
+a picture.  (As the tools stand, ocrdoc and tagdoc read PDFs only, which they say with
+``takes``: for a picture they need typdoc before them, until they learn to keep a
+picture a picture.)
 
 **Models.**  A step may do better with a model, an optional download (:mod:`doccor.models`).
 An adapter says so with two members docrepro looks for and does not demand: ``catalogue``,
@@ -83,12 +84,22 @@ class Step:
         that binds pictures, for a PDF."""
         return not (self.takes == "pictures" and original.suffix.lower() == ".pdf")
 
+    @property
+    def makes_pdf(self) -> bool:
+        """True for the step that makes a PDF of pictures (typdoc)."""
+        return self.takes == "pictures"
+
+    @property
+    def needs_pdf(self) -> bool:
+        """True for a step that reads PDFs only."""
+        return self.takes == "pdf"
+
 
 STEPS: tuple[Step, ...] = (
     Step("typdoc", 5, "pictures", "pdf",
          {"en": "changes the type: binds pictures into one PDF, each in it byte for byte",
           "de": "ändert den Typ: bindet Bilder zu einem PDF, jedes Byte für Byte darin"}),
-    Step("optdoc", 10, "original", "pdf",
+    Step("optdoc", 10, "document", "document of the same type",
          {"en": "makes the page faithful: upright, unwarped, evenly lit, in its colours",
           "de": "macht die Seite getreu: aufrecht, entzerrt, gleichmäßig hell, in ihren Farben"}),
     Step("ocrdoc", 20, "pdf", "pdf, reading",

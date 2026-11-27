@@ -219,7 +219,7 @@ dependencies = [
 
 [[package]]
 name = "docrepro"
-version = "0.5.0"
+version = "0.6.0"
 source = { editable = "." }
 dependencies = [
     { name = "doccor" },
@@ -251,8 +251,8 @@ requires-dist = [
     { name = "doccor", git = "https://github.com/fre-ms/doccor?tag=v0.2.0" },
     { name = "ocrdoc", extras = ["gui"], marker = "extra == 'gui'", git = "https://github.com/fre-ms/ocrdoc?tag=v0.3.0" },
     { name = "ocrdoc", extras = ["ocr", "tables", "barcodes"], git = "https://github.com/fre-ms/ocrdoc?tag=v0.3.0" },
-    { name = "optdoc", extras = ["cleanup"], git = "https://github.com/fre-ms/optdoc?tag=v0.9.0" },
-    { name = "optdoc", extras = ["gui"], marker = "extra == 'gui'", git = "https://github.com/fre-ms/optdoc?tag=v0.9.0" },
+    { name = "optdoc", extras = ["cleanup"], git = "https://github.com/fre-ms/optdoc?tag=v0.10.0" },
+    { name = "optdoc", extras = ["gui"], marker = "extra == 'gui'", git = "https://github.com/fre-ms/optdoc?tag=v0.10.0" },
     { name = "tagdoc", git = "https://github.com/fre-ms/tagdoc?tag=v0.2.0" },
     { name = "tagdoc", extras = ["gui"], marker = "extra == 'gui'", git = "https://github.com/fre-ms/tagdoc?tag=v0.2.0" },
     { name = "typdoc", git = "https://github.com/fre-ms/typdoc?tag=v0.2.0" },
@@ -519,8 +519,8 @@ wheels = [
 
 [[package]]
 name = "optdoc"
-version = "0.9.0"
-source = { git = "https://github.com/fre-ms/optdoc?tag=v0.9.0#a1ad998f28b0081eac33af30fe3eae3587d2cef4" }
+version = "0.10.0"
+source = { git = "https://github.com/fre-ms/optdoc?tag=v0.10.0#81fd286cf4b743cd7c42ac00aa4aa5c05e752225" }
 dependencies = [
     { name = "doccor" },
     { name = "pymupdf" },

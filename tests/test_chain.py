@@ -189,13 +189,13 @@ def test_every_step_is_optional(tmp_path: Path, report: Path) -> None:
     assert caught.value.kind == "no-steps"
 
 
-def test_a_picture_goes_on_as_a_pdf(tmp_path: Path, report: Path) -> None:
+def test_a_picture_goes_on_as_a_pdf_or_stays_a_picture(tmp_path: Path, report: Path) -> None:
     """typdoc binds a picture into a PDF, as medRDS says, and the steps after it take
-    that; without typdoc, optdoc makes a PDF of the picture it is handed; without both,
-    ocrdoc gets the picture, which (as it stands) it cannot take, and says so itself.
-    The chain document makes the same files again."""
-    from ocrdoc.errors import OcrdocError
-
+    that.  Without typdoc a picture stays a picture: optdoc gives back the type it got,
+    and the result is that picture with the chain document beside it.  The steps that
+    read PDFs only (ocrdoc, tagdoc, as they stand) need typdoc before them for a
+    picture, and the chain says so before it does anything.  The chain document makes
+    the same files again."""
     photo = photo_of(report, tmp_path / "foto.jpg")
     bound = Chain.open(photo, settings={"reader": "none"}).run(tmp_path / "bound")
     assert in_use(bound) == [("typdoc", True), ("optdoc", True), ("ocrdoc", True),
@@ -213,16 +213,29 @@ def test_a_picture_goes_on_as_a_pdf(tmp_path: Path, report: Path) -> None:
     assert _embedded(read["document"]) == [EMBEDDED, "ocrdoc.json", "tagdoc.json"]
     with pymupdf.open(read["document"]) as doc:  # the photo itself is in it, byte for byte
         assert photo.read_bytes() in doc.xref_stream_raw(doc[0].get_images()[0][0])
-    as_before = Chain.open(photo, settings={"reader": "none"}, without=("typdoc",)).run(
-        tmp_path / "as-before")
-    assert in_use(as_before)[:2] == [("typdoc", False), ("optdoc", True)]
-    assert by_tool(load_chain(as_before["config"]))["optdoc"]["config"]["input"]["suffix"] \
-        == ".jpg"
-    with pytest.raises(OcrdocError) as caught:
-        Chain.open(photo, without=("typdoc", "optdoc"), settings={"reader": "none"}).run(
-            tmp_path / "out")
-    assert caught.value.kind == "not-pdf"
-    assert not (tmp_path / "out").exists()  # nothing written, nothing left
+    # a picture stays a picture: optdoc alone, the type as it came
+    kept = Chain.open(photo, without=("typdoc", "ocrdoc", "tagdoc")).run(tmp_path / "kept")
+    assert in_use(kept) == [("typdoc", False), ("optdoc", True), ("ocrdoc", False),
+                            ("tagdoc", False)]
+    assert sorted(p.name for p in (tmp_path / "kept").iterdir()) == [
+        "foto.docrepro.json", "foto.jpg"]
+    assert Path(kept["document"]).name == "foto.jpg" and kept["pages"] == 1
+    assert Path(kept["document"]).read_bytes()[:3] == b"\xff\xd8\xff"  # a JPEG
+    held = by_tool(load_chain(kept["config"]))["optdoc"]["config"]
+    assert held["input"]["suffix"] == ".jpg" and held["version"] == 3
+    once_more = Chain.open(photo, chain=load_chain(kept["config"])).run(tmp_path / "kept-again")
+    for key in ("document", "config"):
+        assert Path(once_more[key]).read_bytes() == Path(kept[key]).read_bytes(), key
+    with pytest.raises(DocreproError) as caught:  # it would replace the picture itself
+        Chain.open(photo, without=("typdoc", "ocrdoc", "tagdoc")).run(tmp_path)
+    assert caught.value.kind == "same-as-source"
+    # the steps that read PDFs need typdoc before them for a picture
+    for without, step in ((("typdoc",), "ocrdoc"), (("typdoc", "optdoc"), "ocrdoc"),
+                          (("typdoc", "ocrdoc"), "tagdoc")):
+        with pytest.raises(DocreproError) as caught:
+            Chain.open(photo, without=without, settings={"reader": "none"})
+        assert (caught.value.kind, caught.value.details) == (
+            "step-needs", {"step": step, "needs": "typdoc"}), without
 
 
 def test_a_step_switched_off_keeps_what_it_held(tmp_path: Path, report: Path) -> None:
