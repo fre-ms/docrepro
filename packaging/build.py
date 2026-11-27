@@ -146,12 +146,13 @@ def check(program: Path, models: Path | None = None) -> dict[str, object]:
         and optdoc["upside_down"], optdoc
     status, ocrdoc, _, _ = _run([str(program), "ocrdoc", "about"])
     assert status == 0 and "rapidocr" in ocrdoc["readers"] and ocrdoc["filters"] \
-        and ocrdoc["tables"] and ocrdoc["barcodes"] and ocrdoc["window"], ocrdoc
+        and ocrdoc["tables"] and ocrdoc["barcodes"] and ocrdoc["window"] \
+        and ocrdoc["heic"], ocrdoc
     status, tagdoc, _, _ = _run([str(program), "tagdoc", "about"])
     assert status == 0 and "lab" in tagdoc["kinds"] and tagdoc["window"], tagdoc
     checks["steps"] = (f"typdoc: {typdoc['standard']}; "
                        f"optdoc: clean-up, HEIC, window, upside down; ocrdoc: readers "
-                       f"{ocrdoc['readers']}, filters, tables, barcodes, window; tagdoc: "
+                       f"{ocrdoc['readers']}, filters, tables, barcodes, HEIC, window; tagdoc: "
                        f"{tagdoc['standard']}, window")
     with tempfile.TemporaryDirectory() as folder:
         work = Path(folder)
@@ -226,19 +227,23 @@ def check(program: Path, models: Path | None = None) -> dict[str, object]:
         checks["steps left out"] = "prepared only: the PDF and the chain document, nothing else"
         status, answer, _, timings["run, a picture kept"] = _run(
             [str(program), "run", str(photo), "--out", str(work / "kept"), "--without",
-             "typdoc", "--without", "ocrdoc", "--without", "tagdoc"], env)
+             "typdoc", "--without", "tagdoc"], env)
         assert status == 0 and Path(answer["document"]).name == "foto.jpg", answer
         assert Path(answer["document"]).read_bytes()[:3] == b"\xff\xd8\xff", "no JPEG"
         assert sorted(p.name for p in (work / "kept").iterdir()) == [
-            "foto.docrepro.json", "foto.jpg"], list((work / "kept").iterdir())
+            "foto.docrepro.json", "foto.jpg", "foto.md", "foto.reading.json"], \
+            list((work / "kept").iterdir())
+        read = json.loads(Path(answer["reading"]).read_text(encoding="utf-8"))["pages"][0]
+        assert read["unit"] == "px" and read["words"], "the picture was not read in its pixels"
         status, answer, _, _ = _run(
             [str(program), "run", str(photo), "--out", str(work / "refused"), "--without",
              "typdoc"], env)
         assert status == 2 and answer["error"] == "step-needs" \
-            and answer["details"] == {"step": "ocrdoc", "needs": "typdoc"}, answer
+            and answer["details"] == {"step": "tagdoc", "needs": "typdoc"}, answer
         assert not _left(work, empty), _left(work, empty)
-        checks["a picture kept"] = ("without typdoc the photo stays a JPEG, prepared; the steps "
-                                    "that read PDFs say that they need typdoc")
+        checks["a picture kept"] = ("without typdoc the photo stays a JPEG, prepared and read, "
+                                    "the reading beside it; a step that reads PDFs only says "
+                                    "that it needs typdoc")
         status, answer, _, _ = _run([str(program), "models", "list", "--models",
                                      str(work / "none")], env)
         listed = {m["name"]: m for m in answer.get("models", [])}

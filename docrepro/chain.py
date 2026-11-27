@@ -95,7 +95,7 @@ def _per_step(progress: StepProgress | None, step: str) -> Callable[[int, int], 
 class Chain:
     """An original and how it goes through the steps: as the chain document given says,
     else fresh with the settings of the steps (``settings``, each step takes those it
-    knows: ``paper``, ``photo``, ``colour_pages`` … for optdoc, ``reader``, ``languages``,
+    knows: ``photo``, ``clean_up``, ``colour_pages`` for optdoc, ``reader``, ``languages``,
     ``cells`` … for ocrdoc).  ``used`` names the steps in use for this document: those the
     chain document says, else every installed step that has work for the original (typdoc
     has none for a PDF) but the ones left out (``without``).

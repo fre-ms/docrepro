@@ -11,10 +11,10 @@ hand, or to be made anew because a step before it changed.  A step that needs an
 switched off is kept, and back when the step is switched on again.
 
 typdoc, which binds a picture into a PDF, has no tab: it has nothing to decide.  For a PDF
-it has nothing to do.  For a picture it stays on in this window: the steps after optdoc
-read PDFs only, as the tools stand, and the window is built on them.  (A picture that is to
-stay a picture is prepared on the command line, with typdoc and those steps left out, or
-in optdoc's own window.)
+it has nothing to do.  For a picture it stays on in this window, as long as a step of the
+window reads PDFs only (tagdoc, as the tools stand).  (A picture that is to stay a picture
+goes through the command line, with typdoc and tagdoc left out, or through optdoc's and
+ocrdoc's own windows.)
 
 The steps work as in their own windows; their panels are theirs.  What joins them: when
 the person turns from optdoc's tab to a later one after changing a page there, optdoc's

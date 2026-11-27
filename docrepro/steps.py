@@ -5,7 +5,7 @@ tool       order  its one step                                takes
 =========  =====  ==========================================  ===========================
 typdoc     5      change the type: bind pictures into a PDF   the original, a picture
 optdoc     10     make the page faithful                      typdoc's PDF, or the original
-ocrdoc     20     recognise: areas, text, tables, barcodes    optdoc's PDF
+ocrdoc     20     recognise: areas, text, tables, barcodes    what optdoc gave, PDF or picture
 semdoc     30     understand: medical terms, identifying      ocrdoc's reading
                   information (lexterm, lexident); planned
 tagdoc     40     describe: title, kind, date, authors (the   ocrdoc's PDF (and, once
@@ -38,9 +38,9 @@ step that gets what it cannot take says so with its own error.
 into a PDF as medRDS says, and has nothing to do for an original that is a PDF (it is in
 use for pictures alone, unless it is left out).  The steps after it take what they are
 handed, typdoc's PDF or the original.  optdoc gives back the type it got: a picture stays
-a picture.  (As the tools stand, ocrdoc and tagdoc read PDFs only, which they say with
-``takes``: for a picture they need typdoc before them, until they learn to keep a
-picture a picture.)
+a picture.  ocrdoc reads a picture and hands it on as it came, with its reading beside it.
+(As the tools stand, tagdoc reads PDFs only, which it says with ``takes``: for a picture it
+needs typdoc before it, until it learns to keep a picture a picture.)
 
 **Models.**  A step may do better with a model, an optional download (:mod:`doccor.models`).
 An adapter says so with two members docrepro looks for and does not demand: ``catalogue``,
@@ -102,9 +102,11 @@ STEPS: tuple[Step, ...] = (
     Step("optdoc", 10, "document", "document of the same type",
          {"en": "makes the page faithful: upright, unwarped, evenly lit, in its colours",
           "de": "macht die Seite getreu: aufrecht, entzerrt, gleichmäßig hell, in ihren Farben"}),
-    Step("ocrdoc", 20, "pdf", "pdf, reading",
-         {"en": "recognises areas, text, tables and barcodes, and lays the text over the page",
-          "de": "erkennt Bereiche, Text, Tabellen und Barcodes und legt den Text über die Seite"}),
+    Step("ocrdoc", 20, "document", "document of the same type, reading",
+         {"en": "recognises areas, text, tables and barcodes; lays the text over the page of a "
+                "PDF, beside a picture",
+          "de": "erkennt Bereiche, Text, Tabellen und Barcodes; legt den Text über die Seite "
+                "eines PDFs, neben ein Bild"}),
     Step("semdoc", 30, "reading", "annotations",
          {"en": "understands the text: medical terms and identifying information",
           "de": "versteht den Text: medizinische Begriffe und identifizierende Angaben"},
@@ -230,8 +232,8 @@ class OptdocAdapter:
 
 
 class OcrdocAdapter:
-    """ocrdoc: optdoc's PDF in, the same pages with their text, the reading and Markdown
-    out."""
+    """ocrdoc: what optdoc gave in (a PDF, or a picture); the same pages with their text
+    (a picture as it came), the reading and Markdown out."""
 
     def __init__(self) -> None:
         import ocrdoc

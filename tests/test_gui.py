@@ -146,8 +146,8 @@ def test_steps_switched_off_and_on(app: QApplication, tmp_path: Path, report: Pa
 
 def test_a_picture_in_the_window(app: QApplication, tmp_path: Path, report: Path) -> None:
     """In this window a picture goes on as a PDF: typdoc binds it and stays on, since the
-    steps after optdoc read PDFs only.  optdoc can be switched freely.  A step that is off
-    in the chain is off in the window."""
+    window still has a step that reads PDFs only (tagdoc).  optdoc can be switched freely.
+    A step that is off in the chain is off in the window."""
     from tests.synthetic import photo_of
 
     photo = photo_of(report, tmp_path / "foto.jpg")

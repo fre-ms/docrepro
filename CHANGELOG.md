@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.7.0 (2026-11-27)
+
+A picture is read as a picture, with ocrdoc 0.4.0. Interface 4; `docrepro-chain` version 2 stays.
+
+- **With typdoc left out, a picture stays a picture through ocrdoc as well.** ocrdoc reads the
+  picture optdoc wrote (or, with optdoc left out too, the picture that came) and hands it on as
+  it is, byte for byte; its reading and the Markdown lie beside it, with the chain document. The
+  chain document makes the same files again. What a person decided in ocrdoc stays when optdoc
+  changes the picture's light and not where things lie on it, as with a PDF.
+- **The reading is `ocrdoc-reading` version 2**: every page says the `unit` of its boxes, points
+  for a page of a PDF (as before), the picture's own pixels for a picture.
+- **Only tagdoc still needs typdoc before it for a picture** (`step-needs`), and the window keeps
+  typdoc on for a picture until tagdoc takes one as well.
+- **`--paper` is gone.** optdoc places no picture on a sheet of paper since 0.10.0; docrepro 0.6.0
+  still took the option and did nothing with it, which was a fault. A caller that passes it gets
+  `usage` now: hence interface 4.
+- **Every step names doccor 0.3.0** (typdoc 0.2.1, optdoc 0.10.1, ocrdoc 0.4.0, tagdoc 0.2.1): how
+  a picture is looked at is written once there, and is the same in every step. A phone's JPEG
+  that carries a second image beside the photo (a gain map) is one page; a TIFF stored on its
+  side is read upright; typdoc binds a PNM as well.
+- The standalone program is tried out with a photo that stays a photo and is read.
+
 ## 0.6.0 (2026-11-27)
 
 A picture can stay a picture, with optdoc 0.10.0. Interface 3 and `docrepro-chain` version 2 stay.

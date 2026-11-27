@@ -43,6 +43,9 @@ and then tries the program out the way an application uses it:
   PDF byte for byte);
 - a failure, which must answer with its kind;
 - `run --without ocrdoc --without tagdoc`: prepared only, the PDF and the chain document;
+- `run --without typdoc --without tagdoc`: the photo stays a JPEG, prepared and read, its reading
+  (the boxes in the picture's pixels) and the Markdown beside it; and `--without typdoc` alone, which
+  must answer `step-needs`, since tagdoc reads PDFs only;
 - `models list`: the models the steps can use, each with its step;
 - on macOS the whole way and the window once more with the network closed by the system
   (`sandbox-exec`), and there `models fetch`, which must answer `model-unreachable` and keep

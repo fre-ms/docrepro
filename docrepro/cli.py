@@ -29,11 +29,11 @@ from docrepro.chain import SUFFIX, Chain, load_chain
 from docrepro.errors import DocreproError
 from docrepro.steps import STEPS, adapter, catalogue
 
-INTERFACE = 3  # the version of docs/interface.md the answers follow
+INTERFACE = 4  # the version of docs/interface.md the answers follow
 TOOL = "docrepro"
 
 # the settings of the steps, by option: the name a step's options know it by
-_SETTINGS = {"paper": "paper", "photo": "photo", "no_clean_up": "clean_up",
+_SETTINGS = {"photo": "photo", "no_clean_up": "clean_up",
              "colour_pages": "colour_pages", "reader": "reader", "languages": "languages",
              "no_cells": "cells", "no_areas": "areas"}
 
@@ -147,8 +147,6 @@ def _document_options(pr: argparse.ArgumentParser) -> None:
                     metavar="STEP",
                     help="leave a step out (optdoc, ocrdoc, tagdoc …); it hands on what it "
                          "got, untouched. May be given more than once")
-    pr.add_argument("--paper", help="optdoc: paper an image is placed on (a4, a5, a3, letter, "
-                                    "legal, image)")
     kind = pr.add_mutually_exclusive_group()
     kind.add_argument("--photo", dest="photo", action="store_const", const=True,
                       help="optdoc: take every page without text for a photo")

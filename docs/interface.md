@@ -1,16 +1,22 @@
 # docrepro's command line as an interface
 
-**Interface 3**, since docrepro 0.5.0 (this description: docrepro 0.6.0). This is what a program may rely on
+**Interface 4**, since docrepro 0.7.0. This is what a program may rely on
 when it calls docrepro, a records app above all, which ships one program instead of one per step.
 
 Every answer carries `interface`; it goes up when something a caller relies on changes in a way that breaks
 it. Within one interface, new fields, options and kinds of error may come; a caller ignores what it does not
 know. The steps' own command lines (`docrepro optdoc …`, `docrepro ocrdoc …`) keep their own interfaces
-(typdoc's 2, optdoc's 4, ocrdoc's 2, tagdoc's 2), described in their repositories.
+(typdoc's 2, optdoc's 5, ocrdoc's 3, tagdoc's 2), described in their repositories.
 
-**From interface 2:** the answer names the document `document`, no longer `pdf`, here and in every step's
-own answer. No step is to force a file type, so the document need not be a PDF, and a field called `pdf`
-would then point at a picture. A caller reads `document` where it read `pdf`; nothing else changed.
+**From interface 3:** two things a caller may rely on changed. **The reading is `ocrdoc-reading`
+version 2**: every page says the `unit` of its boxes, points for a page of a PDF (as before) and the
+picture's own pixels for a picture, which ocrdoc (0.4.0) now reads and hands on as it came. **`--paper` is
+gone**: optdoc places no picture on a sheet of paper any more (since 0.10.0; docrepro 0.6.0 still took
+the option and did nothing with it). With them: a picture can stay a picture through ocrdoc as well, its
+reading and the Markdown beside it; of the steps, only tagdoc still reads PDFs only.
+
+**From interface 2 (docrepro 0.5.0):** the answer names the document `document`, no longer `pdf`, here and
+in every step's own answer. No step is to force a file type, so the document need not be a PDF.
 
 **From interface 1 (docrepro 0.3.0):** every step is optional. `--without <step>` leaves a step out; the
 answer's `steps` name every installed step and say whether it was in use (`used`); the chain document is
@@ -18,9 +24,9 @@ version 2 (each step says `used`; version 1 is no longer read: `bad-config`, rea
 chain document does not name is not in use (it started fresh before); new kinds of error `step-needs` and
 `no-steps`. Models as an optional download came within interface 1 (docrepro 0.2.0) and stay as they are.
 
-**Added within interface 3 (docrepro 0.6.0):** a picture can stay a picture. With typdoc left out, optdoc
-(0.10.0) gives back the type it was handed, and `document` in the answer then names a picture, with the
-chain document beside it. A step that reads PDFs only and is handed a picture answers `step-needs`
+**Added within interface 3 (docrepro 0.6.0), and kept:** a picture can stay a picture. With typdoc left
+out, optdoc (0.10.0) gives back the type it was handed; `document` in the answer then names a picture, with
+the chain document beside it. A step that reads PDFs only and is handed a picture answers `step-needs`
 (it needs typdoc) before anything is done.
 
 **Added within interface 2 (docrepro 0.4.0), and kept:** typdoc as step 5, the one step that changes a
@@ -54,9 +60,9 @@ to docrepro. docrepro never goes on the network while it works; the one command 
 ## `about`
 
 ```json
-{"interface": 3, "made_with": "docrepro 0.6.0", "version": "0.6.0", "window": true,
+{"interface": 4, "made_with": "docrepro 0.7.0", "version": "0.7.0", "window": true,
  "steps": [{"tool": "optdoc", "order": 10, "takes": "original", "gives": "pdf",
-            "does": {"en": "…", "de": "…"}, "planned": false, "installed": true, "version": "0.10.0"},
+            "does": {"en": "…", "de": "…"}, "planned": false, "installed": true, "version": "0.10.1"},
            {"tool": "typdoc", "order": 5, "…": "…"},
            {"tool": "ocrdoc", "order": 20, "…": "…"},
            {"tool": "semdoc", "order": 30, "takes": "reading", "gives": "annotations",
@@ -79,7 +85,7 @@ the hidden folder `.docrepro-work` inside `<folder>` and is removed at once). Wi
 | file | what it is |
 |---|---|
 | `<stem>.pdf` (or, where a picture stays a picture, `<stem>.<ending>`) | the document: optdoc's prepared pages with ocrdoc's text layer and tagdoc's description (medRDS 7: XMP and the information dictionary), carrying every step's configuration document (`optdoc.json`, `ocrdoc.json`, `tagdoc.json`) and the chain document (`docrepro.json`) |
-| `<stem>.reading.json` | ocrdoc's reading (`ocrdoc-reading` 1) |
+| `<stem>.reading.json` | ocrdoc's reading (`ocrdoc-reading` 2: every page says the `unit` of its boxes, `"pt"` for a page of a PDF, `"px"` for a picture) |
 | `<stem>.md` | the text as Markdown |
 | `<stem>.docrepro.json` | the chain document (below) |
 
@@ -92,23 +98,24 @@ step that is not in use hands on what it got, untouched, and writes nothing:
 
 | left out | what happens |
 |---|---|
-| typdoc | **A picture stays a picture.** optdoc gives back the type it got: the result is `<stem>.<ending>`, the prepared picture in the format it came in, with the chain document beside it (a picture has no place for it). ocrdoc and tagdoc read PDFs only, as they stand: with typdoc left out for a picture they must be left out too, or the answer is `step-needs` (they need typdoc). For a PDF typdoc is never in use: it has nothing to do. |
-| optdoc | ocrdoc reads what typdoc gave (the picture bound into a PDF, as it came: a photo read without preparing it), or the original where that is a PDF. |
+| typdoc | **A picture stays a picture.** optdoc gives back the type it got, and ocrdoc reads the picture and hands it on as it is: the result is `<stem>.<ending>`, the prepared picture in the format it came in, with the reading (its boxes in the picture's pixels), the Markdown and the chain document beside it (a picture has no place for them). tagdoc reads PDFs only, as it stands: with typdoc left out for a picture it must be left out too, or the answer is `step-needs` (it needs typdoc). For a PDF typdoc is never in use: it has nothing to do. |
+| optdoc | ocrdoc reads what typdoc gave (the picture bound into a PDF, as it came: a photo read without preparing it), or the original, a PDF or, with typdoc left out as well, the picture itself. |
 | ocrdoc | No text layer, no reading, no Markdown; tagdoc describes optdoc's PDF (and finds less to suggest where the pages have no text). |
 | tagdoc | The PDF has no description; it is ocrdoc's. |
 | all | The error `no-steps`. |
 
 **No step is to force a file type.** typdoc is the one step that changes a document's type; the steps after
-it take what they are handed. optdoc keeps the type it is handed (from 0.10.0). ocrdoc and tagdoc still read
-PDFs only; they are to learn to take a picture and lay the reading and the description beside it, or into
-it as medRDS says for its format (`docs/family-design.md` in optdoc has the plan).
+it take what they are handed. optdoc keeps the type it is handed (from 0.10.0), and so does ocrdoc (from
+0.4.0), which lays its reading beside a picture. tagdoc still reads PDFs only; it is to learn to take a
+picture and put the description into it or beside it, as medRDS says for its format
+(`docs/family-design.md` in optdoc has the plan).
 
 A step that cannot do without another says so (`step-needs`: semdoc, once there, needs ocrdoc's reading).
 The PDF carries the configuration documents of the steps that ran, and the chain document says for every
 step whether it was in use. With `--config` the chain document decides which steps are in use; `--without`
 beside it is a `usage` error.
 
-**Settings** of the steps, each taken by the step that knows it: `--paper`, `--photo` or `--scan`,
+**Settings** of the steps, each taken by the step that knows it: `--photo` or `--scan`,
 `--no-clean-up`, `--colour-pages jpeg|png` (optdoc); `--reader`, `--languages`, `--no-cells`, `--no-areas`
 (ocrdoc). With `--config` the chain document decides; a setting beside it is a `usage` error.
 
@@ -122,12 +129,12 @@ document does not name it, and it may stand beside `--config`.
 The answer:
 
 ```json
-{"interface": 3, "made_with": "docrepro 0.6.0",
+{"interface": 4, "made_with": "docrepro 0.7.0",
  "document": "<folder>/<stem>.pdf", "config": "<folder>/<stem>.docrepro.json",
  "reading": "<folder>/<stem>.reading.json", "markdown": "<folder>/<stem>.md",
  "pages": 2,
- "steps": [{"tool": "optdoc", "used": true, "made_with": "optdoc 0.10.0", "dropped": []},
-           {"tool": "ocrdoc", "used": true, "made_with": "ocrdoc 0.3.0", "dropped": [2]},
+ "steps": [{"tool": "optdoc", "used": true, "made_with": "optdoc 0.10.1", "dropped": []},
+           {"tool": "ocrdoc", "used": true, "made_with": "ocrdoc 0.4.0", "dropped": [2]},
            {"tool": "tagdoc", "used": false}],
  "not_installed": ["semdoc"]}
 ```
@@ -147,8 +154,9 @@ On the left stand the steps, each with a switch and what became of it: **off**; 
 it changed since). A filled circle marks a step in use, an empty one a step that is off, in the list and on
 its tabs; the tabs of a step that is off are closed. The window starts with the steps the chain document
 or `--without` say. typdoc has no tab (it has nothing to decide); for a PDF it says "nothing to do". In
-this window a picture goes on as a PDF: typdoc stays on for one, since the window is built on the steps
-that read PDFs. (A picture that is to stay a picture is prepared with `run`, or in optdoc's own window.)
+this window a picture goes on as a PDF: typdoc stays on for one, as long as a step of the window (tagdoc)
+reads PDFs only. (A picture that is to stay a picture goes through `run`, or through optdoc's and ocrdoc's
+own windows.)
 A step that needs one which is off is off as well. What a person decided in a step that is
 switched off is kept, in the chain document too, and is back when the step is switched on again; one
 case apart: where optdoc is switched off, ocrdoc reads the original, a different file, and starts anew
@@ -174,7 +182,7 @@ No step needs a model; a step lists one only after it did better, measured, than
 docrepro lists the models of every installed step, each with its step:
 
 ```json
-{"interface": 3, "made_with": "docrepro 0.6.0",
+{"interface": 4, "made_with": "docrepro 0.7.0",
  "models": [{"step": "optdoc", "name": "page-orientation", "file": "pp-lcnet-x1-0-doc-ori.onnx",
              "url": "https://huggingface.co/PaddlePaddle/PP-LCNet_x1_0_doc_ori_onnx/resolve/…/inference.onnx",
              "sha256": "af9a0a4f…", "bytes": 6788069, "licence": "Apache-2.0",
@@ -218,7 +226,7 @@ its bench (ocrdoc's `docs/interface.md`).
  "original": {"sha256": "…", "bytes": 245678, "suffix": ".jpg"},
  "steps": [{"tool": "typdoc", "used": true, "made_with": "typdoc 0.2.0",
             "config": {"format": "typdoc-config", "…": "…"}},
-           {"tool": "optdoc", "used": true, "made_with": "optdoc 0.10.0",
+           {"tool": "optdoc", "used": true, "made_with": "optdoc 0.10.1",
             "config": {"format": "optdoc-config", "…": "…"}},
            {"tool": "ocrdoc", "used": true, "made_with": "ocrdoc 0.3.0",
             "config": {"format": "ocrdoc-config", "…": "…"}},

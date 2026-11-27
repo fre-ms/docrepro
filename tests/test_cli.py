@@ -88,6 +88,10 @@ def test_failures_without_paths(tmp_path: Path, report: Path,
         assert status == 2 and answer["error"] == kind, kind
         said = json.dumps(answer, ensure_ascii=False) + err
         assert PATIENT not in said and str(tmp_path) not in said, kind
+    # an option that is gone (optdoc places no picture on paper any more) is no option
+    status, answer, err = _answer(capsys, ["run", str(good), "--paper", "a4"])
+    assert status == 2 and answer["error"] == "usage"
+    assert PATIENT not in json.dumps(answer, ensure_ascii=False) + err
 
 
 @needs_engine

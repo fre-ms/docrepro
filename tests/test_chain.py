@@ -192,10 +192,10 @@ def test_every_step_is_optional(tmp_path: Path, report: Path) -> None:
 def test_a_picture_goes_on_as_a_pdf_or_stays_a_picture(tmp_path: Path, report: Path) -> None:
     """typdoc binds a picture into a PDF, as medRDS says, and the steps after it take
     that.  Without typdoc a picture stays a picture: optdoc gives back the type it got,
-    and the result is that picture with the chain document beside it.  The steps that
-    read PDFs only (ocrdoc, tagdoc, as they stand) need typdoc before them for a
-    picture, and the chain says so before it does anything.  The chain document makes
-    the same files again."""
+    and the result is that picture with the chain document beside it.  A step that
+    reads PDFs only (tagdoc, as it stands) needs typdoc before it for a picture, and the
+    chain says so before it does anything.  The chain document makes the same files
+    again."""
     photo = photo_of(report, tmp_path / "foto.jpg")
     bound = Chain.open(photo, settings={"reader": "none"}).run(tmp_path / "bound")
     assert in_use(bound) == [("typdoc", True), ("optdoc", True), ("ocrdoc", True),
@@ -229,13 +229,76 @@ def test_a_picture_goes_on_as_a_pdf_or_stays_a_picture(tmp_path: Path, report: P
     with pytest.raises(DocreproError) as caught:  # it would replace the picture itself
         Chain.open(photo, without=("typdoc", "ocrdoc", "tagdoc")).run(tmp_path)
     assert caught.value.kind == "same-as-source"
-    # the steps that read PDFs need typdoc before them for a picture
-    for without, step in ((("typdoc",), "ocrdoc"), (("typdoc", "optdoc"), "ocrdoc"),
-                          (("typdoc", "ocrdoc"), "tagdoc")):
+    # a step that reads PDFs only needs typdoc before it for a picture
+    for without in (("typdoc",), ("typdoc", "optdoc"), ("typdoc", "ocrdoc")):
         with pytest.raises(DocreproError) as caught:
             Chain.open(photo, without=without, settings={"reader": "none"})
         assert (caught.value.kind, caught.value.details) == (
-            "step-needs", {"step": step, "needs": "typdoc"}), without
+            "step-needs", {"step": "tagdoc", "needs": "typdoc"}), without
+
+
+@needs_engine
+def test_a_picture_is_read_as_a_picture(tmp_path: Path, report: Path) -> None:
+    """Without typdoc a picture stays a picture through ocrdoc as well: ocrdoc hands on
+    the picture optdoc wrote, as it is, and its reading and the Markdown lie beside it,
+    the boxes in the picture's pixels.  The chain document makes the same files again.
+    What a person corrected in ocrdoc stays when optdoc changes the picture's light and
+    goes when it moves the page: ocrdoc finds optdoc's frames in the document beside the
+    picture.  With optdoc left out too, ocrdoc reads the picture that came and hands on
+    that."""
+    from ocrdoc.project import Project as Reading
+    from optdoc import output
+    from optdoc.project import Project as Preparation
+    from PIL import Image
+
+    photo = photo_of(report, tmp_path / "foto.jpg")
+    left_out = ("typdoc", "tagdoc")
+    read = Chain.open(photo, without=left_out).run(tmp_path / "read")
+    assert in_use(read) == [("typdoc", False), ("optdoc", True), ("ocrdoc", True),
+                            ("tagdoc", False)]
+    assert sorted(p.name for p in (tmp_path / "read").iterdir()) == [
+        "foto.docrepro.json", "foto.jpg", "foto.md", "foto.reading.json"]
+    kept = Chain.open(photo, without=("typdoc", "ocrdoc", "tagdoc")).run(tmp_path / "kept")
+    assert Path(read["document"]).read_bytes() == Path(kept["document"]).read_bytes()
+    page = json.loads(Path(read["reading"]).read_text(encoding="utf-8"))["pages"][0]
+    with Image.open(read["document"]) as picture:
+        assert (page["unit"], page["width"], page["height"]) == ("px", *picture.size)
+    assert "Ramipril" in page["text"] and read["pages"] == 1
+    chain = load_chain(read["config"])
+    again = Chain.open(photo, chain=chain).run(tmp_path / "again")
+    assert _files(again) == _files(read)
+
+    configs = {s["tool"]: s["config"] for s in chain["steps"] if "config" in s}
+    preparation = Preparation.open(photo, config=configs["optdoc"])
+    try:
+        prepared = preparation.build()
+        try:  # optdoc's picture as the chain made it, its document beside it
+            picture_made = output.write(prepared, tmp_path / "work")["document"]
+        finally:
+            prepared.close()
+    finally:
+        preparation.close()
+    reading = Reading.open(picture_made, config=configs["ocrdoc"])
+    try:
+        reading.set_correction(0, reading.text(0).replace("Ramipril", "Ramipril (ACE)", 1))
+        corrected = reading.config()
+    finally:
+        reading.close()
+    for change, stays in (({"contrast": True}, True), ({"straighten": False}, False)):
+        changed = json.loads(json.dumps(configs["optdoc"]))
+        changed["pages"][0]["plan"].update(change)
+        changed["pages"][0]["by"] = "person"
+        made = Chain.open(photo, without=left_out).run(tmp_path / f"b-{stays}", configs={
+            "optdoc": changed, "ocrdoc": corrected})
+        steps = {s["tool"]: s for s in made["steps"]}
+        assert steps["ocrdoc"]["dropped"] == ([] if stays else [1])
+        page = json.loads(Path(made["reading"]).read_text(encoding="utf-8"))["pages"][0]
+        assert ("Ramipril (ACE)" in page["text"]) == stays
+
+    alone = Chain.open(photo, without=("typdoc", "optdoc", "tagdoc"),
+                       settings={"reader": "none"}).run(tmp_path / "alone")
+    assert Path(alone["document"]).read_bytes() == photo.read_bytes()
+    assert load_chain(alone["config"])["original"]["suffix"] == ".jpg"
 
 
 def test_a_step_switched_off_keeps_what_it_held(tmp_path: Path, report: Path) -> None:

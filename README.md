@@ -72,20 +72,22 @@ docrepro models fetch page-orientation --to models/
 docrepro run scan.pdf --out results/ --models models/
 docrepro run scan.pdf --out results/ --without optdoc      # read the scan as it came
 docrepro run photo.heic --out results/ --without ocrdoc --without tagdoc   # prepare only
+docrepro run photo.heic --out results/ --without typdoc --without tagdoc   # it stays a HEIC, read
 ```
 
 `run` writes the last step's files under the original's name (`<name>.pdf` with ocrdoc's text layer and
 tagdoc's description, `<name>.reading.json`, `<name>.md`) and the chain document `<name>.docrepro.json`, and nothing anywhere else: what the steps make
 on the way goes into a hidden folder inside the results and is removed at once. `--without <step>` leaves a
-step out. A picture goes on as a PDF through typdoc; with typdoc left out it stays a picture (optdoc gives
-back the type it got), and the steps that read PDFs only (ocrdoc, tagdoc, as they stand) are left out with
-it. With optdoc left out, ocrdoc reads the picture as typdoc bound it, unprepared. `edit`
+step out. A picture goes on as a PDF through typdoc; with typdoc left out it stays a picture: optdoc gives
+back the type it got, and ocrdoc reads the picture and lays its reading beside it. tagdoc reads PDFs only,
+as it stands, and is left out with typdoc. With optdoc left out, ocrdoc reads what it is handed, unprepared:
+the picture as typdoc bound it, or the picture itself. `edit`
 opens one window with a tab for every panel of the steps (optdoc's preparation, ocrdoc's filters, areas and
 text, tagdoc's description) and, on the left, the steps themselves: each with a switch and what became of it
 (off; in use as suggested; changed by hand; to be made anew), a filled or an empty circle on its tabs.
 *Apply* writes the same files as `run`, *Save and continue later* the chain document, *Cancel* nothing. Every command answers with one JSON
 object, a failure too, with its kind and its message in English and German. The settings of the steps can be
-given with `run` and `edit`: `--paper`, `--photo`/`--scan`, `--no-clean-up`, `--colour-pages` (optdoc),
+given with `run` and `edit`: `--photo`/`--scan`, `--no-clean-up`, `--colour-pages` (optdoc),
 `--reader`, `--languages`, `--no-cells`, `--no-areas` (ocrdoc). `--progress` writes
 `{"step": "ocrdoc", "page": 1, "of": 2}` per step and page on standard error.
 
@@ -126,8 +128,9 @@ faster-starting folder with `--onedir`. See [docs/sidecar.md](docs/sidecar.md).
 - **The file keeps its type.** No step is to force PDF: a picture will go through every step as a picture
   (optdoc writes the prepared picture in the format it came in, ocrdoc lays its reading beside it, tagdoc
   writes into the picture or a sidecar as medRDS says for the format). typdoc, the one step that changes
-  the type, is there, and optdoc keeps the type it is handed; ocrdoc and tagdoc still read PDFs only. The
-  design: `docs/family-design.md` in optdoc.
+  the type, is there, and optdoc and ocrdoc keep the type they are handed; tagdoc still reads PDFs only,
+  and until it does not, the window keeps typdoc on for a picture. The design: `docs/family-design.md` in
+  optdoc.
 - Several pictures of one document through the whole chain (typdoc binds several on its own already).
 
 ## Licence
