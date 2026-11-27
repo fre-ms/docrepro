@@ -1,0 +1,146 @@
+"""The window, driven without a screen: the preparation changes the project's plans, and
+the three ways out end as they say; the words are there in both languages."""
+
+from __future__ import annotations
+
+import ast
+import string
+from pathlib import Path
+
+import pytest
+
+from optdoc import cleanup
+from optdoc.project import Project
+from tests.synthetic import scan
+
+pytest.importorskip("PySide6")
+from PySide6.QtCore import Qt  # noqa: E402
+from PySide6.QtWidgets import QApplication  # noqa: E402
+
+from optdoc.gui.window import EditWindow  # noqa: E402
+from optdoc.gui.words import WORDS, Words  # noqa: E402
+
+needs_opencv = pytest.mark.skipif(not cleanup.available(), reason="needs OpenCV")
+
+
+@pytest.fixture(scope="module")
+def app() -> QApplication:
+    return QApplication.instance() or QApplication(["optdoc"])
+
+
+@pytest.fixture
+def scanned(tmp_path: Path, report: Path) -> Path:
+    return scan(report, tmp_path / "scan.pdf", rotation=2.0)
+
+
+def test_words_in_both_languages() -> None:
+    """Every word has the same placeholders in English and German, and every word the
+    window asks for exists."""
+    for key, (english, german) in WORDS.items():
+        fields = [{f for _, f, _, _ in string.Formatter().parse(t) if f} for t in (english, german)]
+        assert fields[0] == fields[1], key
+    used: set[str] = set()
+    for path in (Path(__file__).resolve().parents[1] / "optdoc" / "gui").glob("*.py"):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "w" and node.args
+                    and isinstance(node.args[0], ast.Constant)):
+                used.add(node.args[0].value)
+    assert used and used <= set(WORDS), used - set(WORDS)
+    assert Words("de")("page", number=3) == "Seite 3" and Words("en")("apply") == "Apply"
+
+
+@needs_opencv
+def test_prepare_by_hand(app: QApplication, scanned: Path) -> None:
+    """Switches, masks, rotation, the suggestion and copying to every page go into the
+    project's plans, marked as a person's; the suggestion taken back is optdoc's again."""
+    project = Project.open(scanned)
+    window = EditWindow(project, Words("de"), synchronous=True)
+    try:
+        panel = window.cleanup
+        assert panel.boxes["straighten"].isChecked() and panel.boxes["grey"].isChecked()
+        panel.boxes["contrast"].setChecked(True)
+        assert project.plan(0).contrast and project.decided_by_person == [0]
+        panel.add_mask((10, 10, 60, 40))
+        panel.add_mask((80, 10, 120, 40))
+        panel.undo()
+        assert project.plan(0).masks == [(10, 10, 60, 40)]
+        panel.rotate(180)
+        assert project.plan(0).rotation == 180 and project.plan(0).masks == []
+        panel.copy_to_all()
+        assert project.plan(1).contrast and project.plan(1).rotation == 0
+        panel.skip()
+        assert project.active_plan(0) is None and window.changed
+        panel.restore()
+        assert project.plan(0).straighten and not project.plan(0).contrast
+        assert project.decided_by_person == [1]  # page 1 is optdoc's suggestion again
+        assert "begradigt" in panel.note.text()
+    finally:
+        window.outcome = "cancelled"
+        window.close()
+        project.close()
+
+
+def test_later_and_cancel(app: QApplication, report: Path) -> None:
+    """Save and continue later closes as "saved", cancel as "cancelled"; a born-digital PDF
+    has nothing to prepare."""
+    for button, outcome in (("later_button", "saved"), ("cancel_button", "cancelled")):
+        project = Project.open(report)
+        window = EditWindow(project, Words("de"), synchronous=True)
+        try:
+            assert not window.cleanup.controls.isEnabled()
+            getattr(window, button).click()
+            assert window.outcome == outcome
+        finally:
+            project.close()
+
+
+@needs_opencv
+def test_corners_dragged_and_turned(app: QApplication, tmp_path: Path, report: Path) -> None:
+    """The sheet's corners are shown on the original and dragged there: the plan takes
+    them and unwarps.  A quarter turn takes the corners with it; turning back brings
+    them back.  A photo whose sheet optdoc did not find starts from the page's own
+    corners, dashed."""
+    import cv2
+
+    from tests.synthetic import camera_photo
+
+    image, _true = camera_photo(report, pitch=25, yaw=8)
+    cv2.imwrite(str(tmp_path / "foto.jpg"), image)
+    project = Project.open(tmp_path / "foto.jpg")
+    window = EditWindow(project, Words("en"), synchronous=True)
+    try:
+        panel = window.cleanup
+        found = project.plan(0).corners
+        assert found and project.plan(0).unwarp
+        assert len(panel.before._handles) == 4  # shown where they were found
+        x, y = found[0]
+        panel.before.move_corner(0, x + 5, y + 3)  # what a drag ends in
+        assert project.plan(0).corners[0] == pytest.approx((x + 5, y + 3))
+        moved = list(project.plan(0).corners)
+        panel.rotate(90)
+        assert project.plan(0).rotation == 90 and project.plan(0).corners != moved
+        panel.rotate(270)
+        assert project.plan(0).rotation == 0
+        assert [c for p in project.plan(0).corners for c in p] == pytest.approx(
+            [c for p in moved for c in p])
+    finally:
+        window.outcome = "cancelled"
+        window.close()
+        project.close()
+    flat = tmp_path / "flach.png"
+    cv2.imwrite(str(flat), cv2.imread(str(tmp_path / "foto.jpg"))[200:1400, 200:1000])
+    project = Project.open(flat)  # a piece of the sheet, no edges: nothing found
+    window = EditWindow(project, Words("de"), synchronous=True)
+    try:
+        assert project.plan(0) is None or not project.plan(0).corners
+        panel = window.cleanup
+        assert len(panel.before._handles) == 4
+        assert panel.before._outline.pen().style() == Qt.PenStyle.DashLine
+        assert "Ecken" in panel.note.text()
+        panel.before.move_corner(2, 400, 600)
+        assert project.plan(0).unwarp and project.plan(0).corners[2] == pytest.approx((400, 600))
+    finally:
+        window.outcome = "cancelled"
+        window.close()
+        project.close()
