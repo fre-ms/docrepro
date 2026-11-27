@@ -1,0 +1,70 @@
+"""Settings of the OCR layer: which engine "auto" means, where Tesseract lives, which
+language packs it reads with.
+
+ocrdoc keeps no configuration file of its own.  An application that embeds it hands
+over its settings with :func:`set_settings` (any object with the three
+attributes or properties will do); without that the environment decides:
+
+``OCRDOC_OCR``
+    the engine "auto" stands for: ``rapidocr``, ``tesseract`` or ``none``.
+``OCRDOC_TESSERACT``
+    the path of the Tesseract program, where it is not found on its own.
+``OCRDOC_TESSERACT_LANGUAGES``
+    Tesseract's language packs, joined by ``+`` (``deu+eng``).
+"""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from typing import Protocol
+
+
+class SettingsLike(Protocol):
+    """What the OCR layer reads from a settings object: only reads, so plain attributes
+    and properties (looked up anew on every access) will both do."""
+
+    @property
+    def ocr_backend(self) -> str:
+        """The engine "auto" stands for: "rapidocr", "tesseract", "none" or "auto"."""
+        ...
+
+    @property
+    def tesseract_path(self) -> str:
+        """The path of the Tesseract program; empty: look for it."""
+        ...
+
+    @property
+    def tesseract_languages(self) -> str:
+        """Tesseract's language packs joined by "+"; empty: what is installed."""
+        ...
+
+
+@dataclass
+class Settings:
+    """The settings of the OCR layer; empty strings mean "decide by yourself"."""
+
+    ocr_backend: str = "auto"
+    tesseract_path: str = ""
+    tesseract_languages: str = ""
+
+
+_current: SettingsLike | None = None
+
+
+def set_settings(settings: SettingsLike | None) -> None:
+    """Use these settings from now on (an embedding application's own); None returns to
+    the environment."""
+    global _current
+    _current = settings
+
+
+def load_settings() -> SettingsLike:
+    """The settings an application set, else those of the environment."""
+    if _current is not None:
+        return _current
+    return Settings(
+        ocr_backend=os.environ.get("OCRDOC_OCR", "auto").strip() or "auto",
+        tesseract_path=os.environ.get("OCRDOC_TESSERACT", "").strip(),
+        tesseract_languages=os.environ.get("OCRDOC_TESSERACT_LANGUAGES", "").strip(),
+    )
