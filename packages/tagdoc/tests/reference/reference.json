@@ -52,7 +52,7 @@
   "title": "Laborbefund"
  },
  "packet": "<?xpacket begin=\"\ufeff\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>\n<x:xmpmeta xmlns:x=\"adobe:ns:meta/\">\n <rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:Description rdf:about=\"\"\n    xmlns:dc=\"http://purl.org/dc/elements/1.1/\"\n    xmlns:dcterms=\"http://purl.org/dc/terms/\"\n    xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\"\n    xmlns:xmpMM=\"http://ns.adobe.com/xap/1.0/mm/\"\n    xmlns:stRef=\"http://ns.adobe.com/xap/1.0/sType/ResourceRef#\"\n    xmlns:stEvt=\"http://ns.adobe.com/xap/1.0/sType/ResourceEvent#\"\n    xmlns:medrds=\"https://medrds.org/ns/1.0/\">\n   <dc:title><rdf:Alt><rdf:li xml:lang=\"x-default\">Laborbefund</rdf:li></rdf:Alt></dc:title>\n   <dc:type><rdf:Bag><rdf:li>lab</rdf:li></rdf:Bag></dc:type>\n   <dc:creator><rdf:Seq><rdf:li>Dr. Erika M\u00fcller &lt;mailto:mueller@labor.example&gt;</rdf:li></rdf:Seq></dc:creator>\n   <dc:description><rdf:Alt><rdf:li xml:lang=\"x-default\">Befund des Labors, erste Seite</rdf:li></rdf:Alt></dc:description>\n   <dc:language><rdf:Bag><rdf:li>de</rdf:li></rdf:Bag></dc:language>\n   <xmp:CreateDate>2026-03-12</xmp:CreateDate>\n  </rdf:Description>\n </rdf:RDF>\n</x:xmpmeta>\n<?xpacket end=\"w\"?>\n",
- "schema": "28a4495a595457d9bd9a258281b1447cb836bb6920d8d359cb4c10f850d6258b",
+ "schema": "36129f18d6922cda36076239565c2fa4861313262bddc3106c7a382ceefeba11",
  "written": {
   "gif-exif": {
    "ending": "gif",

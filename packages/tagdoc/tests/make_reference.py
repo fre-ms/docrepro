@@ -28,6 +28,14 @@ def sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def schema_digest(text: str) -> str:
+    """The SHA-256 of a schema's content, whatever its line endings (git writes text with
+    CRLF on Windows): of its JSON, written in one way."""
+    canonical = json.dumps(json.loads(text), ensure_ascii=False, sort_keys=True,
+                           separators=(",", ":"))
+    return sha(canonical.encode("utf-8"))
+
+
 def pictures() -> dict[str, tuple[str, bytes]]:
     """The pictures compared: every type with and without a camera's EXIF, a WebP in its
     simple format, and a HEIC in each of the layouts other programs write."""
@@ -95,12 +103,12 @@ def reference(medrds: Path, folder: Path, cases: dict[str, tuple[str, bytes]]) -
         "  fields: lib.serialiseXmp(given.fields, schema) }));"),
         {"files": {n: [cases[n][0], f] for n, f in files.items()}, "meta": META,
          "fields": FIELDS})
-    schema = (medrds / "schema" / "medrds.json").read_bytes()
+    schema = schema_digest((medrds / "schema" / "medrds.json").read_text(encoding="utf-8"))
     head = subprocess.run(["git", "-C", str(medrds), "rev-parse", "HEAD"], capture_output=True,
                           text=True).stdout.strip()
     version = json.loads((medrds / "package.json").read_text(encoding="utf-8"))["version"]
     return {"library": {"version": version, "commit": head or None},
-            "schema": sha(schema), "meta": META, "packet": written["packet"],
+            "schema": schema, "meta": META, "packet": written["packet"],
             "fields": FIELDS, "fields_packet": written["fields"],
             "embedded": written["embedded"], "written": written["written"]}
 

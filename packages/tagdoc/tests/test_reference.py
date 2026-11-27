@@ -58,8 +58,10 @@ def test_the_same_packet_and_schema_as_the_library() -> None:
     library puts it."""
     assert medrds.serialise_xmp(REFERENCE["meta"]) == REFERENCE["packet"]
     assert medrds.serialise_xmp(REFERENCE["fields"]) == REFERENCE["fields_packet"]
-    assert _sha((Path(medrds.__file__).parent / "schema" / "medrds.json").read_bytes()) \
-        == REFERENCE["schema"]
+    from tests.make_reference import schema_digest
+
+    carried = Path(medrds.__file__).parent / "schema" / "medrds.json"
+    assert schema_digest(carried.read_text(encoding="utf-8")) == REFERENCE["schema"]
     for name, expected in REFERENCE["embedded"].items():
         data = _input(name)
         put = jpeg.with_packet if name.startswith("jpg") else png.with_packet

@@ -1,0 +1,2 @@
+# the files the tests compare byte for byte with the standard's library: never converted
+packages/*/tests/reference/** -text
