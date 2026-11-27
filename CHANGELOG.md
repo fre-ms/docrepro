@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.8.0 (2026-11-27)
+
+A picture goes through every step as a picture, with tagdoc 0.3.0. Interface 4 and
+`docrepro-chain` version 2 stay.
+
+- **`--without typdoc` alone keeps a picture a picture**: optdoc prepares it, ocrdoc reads it,
+  and tagdoc writes its description into it, in the place the picture's format has (XMP, and the
+  EXIF texts in step, in JPEG, PNG, TIFF, WebP and HEIC; XMP in GIF), or into a sidecar beside it
+  (BMP, PNM). What tagdoc suggests for a picture comes from the reading ocrdoc laid beside it. The
+  chain document makes the same picture again, byte for byte.
+- **No step needs a PDF any more**: `step-needs` no longer arises for a picture.
+- **The window lets typdoc be switched for a picture**: on, the picture goes on as a PDF; off, it
+  stays a picture through every tab. Switching it hands optdoc another file that shows the very
+  same pages: optdoc takes along what a person planned (optdoc 0.11.0, `same_document`), and
+  ocrdoc, which finds the same frames, keeps what a person decided. Where optdoc is off, ocrdoc
+  has no frames to go by and starts anew; the status line says so.
+- The standalone program is tried out with a photo that stays a photo through every step.
+
 ## 0.7.0 (2026-11-27)
 
 A picture is read as a picture, with ocrdoc 0.4.0. Interface 4; `docrepro-chain` version 2 stays.

@@ -8,7 +8,7 @@ optdoc     10     make the page faithful                      typdoc's PDF, or t
 ocrdoc     20     recognise: areas, text, tables, barcodes    what optdoc gave, PDF or picture
 semdoc     30     understand: medical terms, identifying      ocrdoc's reading
                   information (lexterm, lexident); planned
-tagdoc     40     describe: title, kind, date, authors (the   ocrdoc's PDF (and, once
+tagdoc     40     describe: title, kind, date, authors (the   what ocrdoc gave (and, once
                   metadata of medRDS)                         there, semdoc's annotations)
 attdoc     50     sign: a time stamp, a person's signature    the document as the steps
                   (resting on TimeAttest); planned            before left it
@@ -39,8 +39,9 @@ into a PDF as medRDS says, and has nothing to do for an original that is a PDF (
 use for pictures alone, unless it is left out).  The steps after it take what they are
 handed, typdoc's PDF or the original.  optdoc gives back the type it got: a picture stays
 a picture.  ocrdoc reads a picture and hands it on as it came, with its reading beside it.
-(As the tools stand, tagdoc reads PDFs only, which it says with ``takes``: for a picture it
-needs typdoc before it, until it learns to keep a picture a picture.)
+tagdoc writes its description into the picture where the picture's format has a place for
+one, and beside it where it has none.  So a picture goes through every step as a picture
+when typdoc is left out, and as a PDF when it is not.
 
 **Models.**  A step may do better with a model, an optional download (:mod:`doccor.models`).
 An adapter says so with two members docrepro looks for and does not demand: ``catalogue``,
@@ -84,16 +85,6 @@ class Step:
         that binds pictures, for a PDF."""
         return not (self.takes == "pictures" and original.suffix.lower() == ".pdf")
 
-    @property
-    def makes_pdf(self) -> bool:
-        """True for the step that makes a PDF of pictures (typdoc)."""
-        return self.takes == "pictures"
-
-    @property
-    def needs_pdf(self) -> bool:
-        """True for a step that reads PDFs only."""
-        return self.takes == "pdf"
-
 
 STEPS: tuple[Step, ...] = (
     Step("typdoc", 5, "pictures", "pdf",
@@ -111,7 +102,7 @@ STEPS: tuple[Step, ...] = (
          {"en": "understands the text: medical terms and identifying information",
           "de": "versteht den Text: medizinische Begriffe und identifizierende Angaben"},
          planned=True, needs=("ocrdoc",)),
-    Step("tagdoc", 40, "pdf", "pdf with metadata (medRDS 7), or a sidecar",
+    Step("tagdoc", 40, "document", "the document described (medRDS 7), or a sidecar beside it",
          {"en": "describes the document: title, kind, date, authors, the people it names",
           "de": "beschreibt das Dokument: Titel, Art, Datum, Autoren, die Personen darin"}),
     Step("attdoc", 50, "document", "the document signed, or its signature beside it",

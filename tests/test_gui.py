@@ -145,9 +145,10 @@ def test_steps_switched_off_and_on(app: QApplication, tmp_path: Path, report: Pa
 
 
 def test_a_picture_in_the_window(app: QApplication, tmp_path: Path, report: Path) -> None:
-    """In this window a picture goes on as a PDF: typdoc binds it and stays on, since the
-    window still has a step that reads PDFs only (tagdoc).  optdoc can be switched freely.
-    A step that is off in the chain is off in the window."""
+    """For a picture typdoc is on unless the person switches it off.  On, the picture goes
+    on as a PDF.  Off, it stays a picture through every step in the window too: optdoc is
+    handed the picture itself (and starts anew on it), ocrdoc reads optdoc's picture,
+    tagdoc describes it; and the chain makes the picture from what the window holds."""
     from tests.synthetic import photo_of
 
     photo = photo_of(report, tmp_path / "foto.jpg")
@@ -156,39 +157,69 @@ def test_a_picture_in_the_window(app: QApplication, tmp_path: Path, report: Path
     try:
         assert window.used == {"typdoc", "ocrdoc"}
         assert window.step_boxes["typdoc"].text() == "typdoc: bind into a PDF"
-        assert window.step_boxes["typdoc"].isChecked()
-        assert not window.step_boxes["typdoc"].isEnabled()
-        assert window.step_states["typdoc"].text() == (
-            "● in use, as suggested (in this window a picture goes on as a PDF)")
-        assert window.step_boxes["optdoc"].isEnabled()
+        assert window.step_boxes["typdoc"].isChecked() and window.step_boxes["typdoc"].isEnabled()
+        assert window.step_states["typdoc"].text() == "● in use, as suggested"
         assert window.tabs.tabText(4) == "○ 5 Describe" and not window.tabs.isTabEnabled(4)
-        assert window.step_states["tagdoc"].text() == "○ off"
         bound = window._origin  # ocrdoc reads typdoc's PDF: the photo is in it as it came
         assert bound.suffix == ".pdf" and window._read_source == bound
         assert photo.read_bytes() in bound.read_bytes()
         window.step_boxes["optdoc"].setChecked(True)  # optdoc prepares typdoc's PDF
-        assert window.used == {"typdoc", "optdoc", "ocrdoc"}
         assert window.prepared_project.config()["input"]["suffix"] == ".pdf"
         window.tabs.setCurrentWidget(window.filters)
-        assert window._read_on_optdoc and window._read_source != bound
+        assert window._read_on_optdoc and window._read_source.suffix == ".pdf"
+        # a person's work in optdoc and in ocrdoc, on typdoc's PDF
+        from ocrdoc import layout
+        from optdoc import cleanup
+
+        planned = cleanup.CleanupPlan.from_dict({
+            **window.prepared_project.plan(0).full_dict(), "contrast": True,
+            "contrast_strength": 4})
+        window.prepared_project.set_plan(0, planned)
+        window._worked_in("optdoc", 0)
+        window.tabs.setCurrentWidget(window.areas)
+        drawn = layout.Region("ignore", (60.0, 700.0, 300.0, 760.0))
+        window.read_project.set_regions(0, [drawn])
+        # typdoc off: optdoc is handed the picture, and every step after it a picture;
+        # it shows the same pages, so what the person did stays in both steps
+        window.step_boxes["typdoc"].setChecked(False)
+        assert window.used == {"optdoc", "ocrdoc"} and window._origin == photo
+        assert window.step_states["typdoc"].text() == "○ off"
+        assert window.prepared_project.config()["input"]["suffix"] == ".jpg"
+        assert window.prepared_project.rebased  # optdoc took the plan along: nothing went
+        assert window.status.text() == window.w("kept_decisions")
+        assert window.prepared_project.plan(0).full_dict() == planned.full_dict()
+        window.tabs.setCurrentWidget(window.areas)
+        assert window.read_project.picture and window.read_project.dropped == []
+        assert window.read_project.regions(0) == [layout.rounded(drawn)]
+        assert window.cleanup.project is window.prepared_project
+        window.tabs.setCurrentWidget(window.filters)
+        assert window._read_source.suffix == ".jpg" and window.read_project.picture
+        window.step_boxes["tagdoc"].setChecked(True)
+        window.tabs.setCurrentIndex(4)
+        assert window.later_projects["tagdoc"].picture
         configs = window.configs()
-        assert configs["typdoc"]["format"] == "typdoc-config"
+        assert "typdoc" not in configs and configs["tagdoc"]["input"]["suffix"] == ".jpg"
         chain.used = set(window.used)
         answer = chain.run(tmp_path / "out", configs=configs)
         assert [(s["tool"], s["used"]) for s in answer["steps"]] == [
-            ("typdoc", True), ("optdoc", True), ("ocrdoc", True), ("tagdoc", False)]
-        assert Path(answer["document"]).suffix == ".pdf"
+            ("typdoc", False), ("optdoc", True), ("ocrdoc", True), ("tagdoc", True)]
+        assert Path(answer["document"]).suffix == ".jpg"
+        assert b"<x:xmpmeta" in Path(answer["document"]).read_bytes()
+        # back on: a PDF again
+        window.step_boxes["typdoc"].setChecked(True)
+        assert window._origin.suffix == ".pdf"
+        assert window.prepared_project.config()["input"]["suffix"] == ".pdf"
     finally:
         window.outcome = "cancelled"
         window.close()
         window.release()
-    # a chain opened for a picture that is to stay one: in this window typdoc is on all the same
+    # a chain opened for a picture that is to stay one starts so in the window
     kept = Chain.open(photo, without=("typdoc", "ocrdoc", "tagdoc"))
     window = ChainWindow(kept, tmp_path / "work2", Words("de"), synchronous=True)
     try:
-        assert window.used == {"typdoc", "optdoc"}
-        assert "in diesem Fenster geht ein Bild als PDF weiter" in \
-            window.step_states["typdoc"].text()
+        assert window.used == {"optdoc"} and window._origin == photo
+        assert window.step_states["typdoc"].text() == "○ aus"
+        assert window.prepared_project.picture
     finally:
         window.outcome = "cancelled"
         window.close()

@@ -160,22 +160,16 @@ class Chain:
 
     def check(self) -> None:
         """Raise "no-steps" when no step is in use, "step-needs" when a step in use needs
-        one that is not: a step it names, or, for a step that reads PDFs handed a picture,
-        the step that makes a PDF of pictures."""
+        one that is not (semdoc, once there, needs ocrdoc's reading).  No step needs a
+        file of one type: every step takes what it is handed."""
         if not self.used:
             raise DocreproError("no-steps")
-        binder = next((step.name for step in STEPS if step.makes_pdf), "typdoc")
-        is_pdf = self.original.suffix.lower() == ".pdf"
         for step, _adapter in self.steps:
             if step.name not in self.used:
                 continue
             for needed in step.needs:
                 if needed not in self.used:
                     raise DocreproError("step-needs", step=step.name, needs=needed)
-            if step.makes_pdf:
-                is_pdf = True
-            elif step.needs_pdf and not is_pdf:
-                raise DocreproError("step-needs", step=step.name, needs=binder)
 
     def opened(self, adapter: Adapter, source: Path, config: dict[str, Any] | None,
                scratch: Path) -> Any:

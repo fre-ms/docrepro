@@ -192,10 +192,8 @@ def test_every_step_is_optional(tmp_path: Path, report: Path) -> None:
 def test_a_picture_goes_on_as_a_pdf_or_stays_a_picture(tmp_path: Path, report: Path) -> None:
     """typdoc binds a picture into a PDF, as medRDS says, and the steps after it take
     that.  Without typdoc a picture stays a picture: optdoc gives back the type it got,
-    and the result is that picture with the chain document beside it.  A step that
-    reads PDFs only (tagdoc, as it stands) needs typdoc before it for a picture, and the
-    chain says so before it does anything.  The chain document makes the same files
-    again."""
+    and the result is that picture with the chain document beside it.  The chain
+    document makes the same files again."""
     photo = photo_of(report, tmp_path / "foto.jpg")
     bound = Chain.open(photo, settings={"reader": "none"}).run(tmp_path / "bound")
     assert in_use(bound) == [("typdoc", True), ("optdoc", True), ("ocrdoc", True),
@@ -229,12 +227,43 @@ def test_a_picture_goes_on_as_a_pdf_or_stays_a_picture(tmp_path: Path, report: P
     with pytest.raises(DocreproError) as caught:  # it would replace the picture itself
         Chain.open(photo, without=("typdoc", "ocrdoc", "tagdoc")).run(tmp_path)
     assert caught.value.kind == "same-as-source"
-    # a step that reads PDFs only needs typdoc before it for a picture
-    for without in (("typdoc",), ("typdoc", "optdoc"), ("typdoc", "ocrdoc")):
-        with pytest.raises(DocreproError) as caught:
-            Chain.open(photo, without=without, settings={"reader": "none"})
-        assert (caught.value.kind, caught.value.details) == (
-            "step-needs", {"step": "tagdoc", "needs": "typdoc"}), without
+
+
+@needs_engine
+def test_a_picture_through_every_step_stays_a_picture(tmp_path: Path, report: Path) -> None:
+    """With typdoc left out and every other step in use, a picture is prepared, read and
+    described as a picture: the description stands in the picture itself (tagdoc writes
+    it into the place the format has), what it suggests comes from the reading ocrdoc
+    laid beside the picture, and the picture's own data are those optdoc wrote.  The
+    chain document makes the same files again; no step needs a PDF."""
+    from PIL import Image
+    from tagdoc import formats, medrds
+
+    photo = photo_of(report, tmp_path / "foto.jpg")
+    whole = Chain.open(photo, without=("typdoc",)).run(tmp_path / "whole")
+    assert in_use(whole) == [("typdoc", False), ("optdoc", True), ("ocrdoc", True),
+                             ("tagdoc", True)]
+    assert sorted(p.name for p in (tmp_path / "whole").iterdir()) == [
+        "foto.docrepro.json", "foto.jpg", "foto.md", "foto.reading.json"]
+    described = Path(whole["document"]).read_bytes()
+    said, standard = medrds.parse_xmp(formats.held(described, ".jpg").packet)
+    assert standard and said["creatorTool"].startswith("docrepro ")
+    assert said["kind"] == "letter" and said["language"] == ["de"]  # read off the reading
+    prepared = Chain.open(photo, without=("typdoc", "ocrdoc", "tagdoc")).run(tmp_path / "kept")
+    with Image.open(whole["document"]) as a, Image.open(prepared["document"]) as b:
+        assert a.size == b.size and a.tobytes() == b.tobytes()  # the picture optdoc wrote
+    page = json.loads(Path(whole["reading"]).read_text(encoding="utf-8"))["pages"][0]
+    assert page["unit"] == "px" and "Ramipril" in page["text"]
+    chain = load_chain(whole["config"])
+    assert by_tool(chain)["tagdoc"]["config"]["input"]["suffix"] == ".jpg"
+    again = Chain.open(photo, chain=chain).run(tmp_path / "again")
+    assert _files(again) == _files(whole)
+    # every step alone, and any of them left out, on the picture itself
+    for without in (("typdoc", "optdoc"), ("typdoc", "ocrdoc"), ("typdoc", "optdoc", "ocrdoc")):
+        made = Chain.open(photo, without=without, settings={"reader": "none"}).run(
+            tmp_path / "-".join(without))
+        assert Path(made["document"]).suffix == ".jpg", without
+        assert b"<x:xmpmeta" in Path(made["document"]).read_bytes(), without
 
 
 @needs_engine

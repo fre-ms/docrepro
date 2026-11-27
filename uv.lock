@@ -219,13 +219,13 @@ dependencies = [
 
 [[package]]
 name = "docrepro"
-version = "0.7.0"
+version = "0.8.0"
 source = { editable = "." }
 dependencies = [
     { name = "doccor" },
     { name = "ocrdoc", extra = ["barcodes", "ocr", "tables"] },
     { name = "optdoc", extra = ["cleanup"] },
-    { name = "tagdoc" },
+    { name = "tagdoc", extra = ["heic"] },
     { name = "typdoc" },
 ]
 
@@ -251,10 +251,10 @@ requires-dist = [
     { name = "doccor", git = "https://github.com/fre-ms/doccor?tag=v0.3.0" },
     { name = "ocrdoc", extras = ["gui"], marker = "extra == 'gui'", git = "https://github.com/fre-ms/ocrdoc?tag=v0.4.0" },
     { name = "ocrdoc", extras = ["ocr", "tables", "barcodes"], git = "https://github.com/fre-ms/ocrdoc?tag=v0.4.0" },
-    { name = "optdoc", extras = ["cleanup"], git = "https://github.com/fre-ms/optdoc?tag=v0.10.1" },
-    { name = "optdoc", extras = ["gui"], marker = "extra == 'gui'", git = "https://github.com/fre-ms/optdoc?tag=v0.10.1" },
-    { name = "tagdoc", git = "https://github.com/fre-ms/tagdoc?tag=v0.2.1" },
-    { name = "tagdoc", extras = ["gui"], marker = "extra == 'gui'", git = "https://github.com/fre-ms/tagdoc?tag=v0.2.1" },
+    { name = "optdoc", extras = ["cleanup"], git = "https://github.com/fre-ms/optdoc?tag=v0.11.0" },
+    { name = "optdoc", extras = ["gui"], marker = "extra == 'gui'", git = "https://github.com/fre-ms/optdoc?tag=v0.11.0" },
+    { name = "tagdoc", extras = ["gui"], marker = "extra == 'gui'", git = "https://github.com/fre-ms/tagdoc?tag=v0.3.0" },
+    { name = "tagdoc", extras = ["heic"], git = "https://github.com/fre-ms/tagdoc?tag=v0.3.0" },
     { name = "typdoc", git = "https://github.com/fre-ms/typdoc?tag=v0.2.1" },
 ]
 provides-extras = ["gui"]
@@ -520,8 +520,8 @@ wheels = [
 
 [[package]]
 name = "optdoc"
-version = "0.10.1"
-source = { git = "https://github.com/fre-ms/optdoc?tag=v0.10.1#8980f8ff0641c5b7b72e718436e31eba07bba8de" }
+version = "0.11.0"
+source = { git = "https://github.com/fre-ms/optdoc?tag=v0.11.0#9e238f13cffd9c21a03bc392f913b434281360f5" }
 dependencies = [
     { name = "doccor" },
     { name = "pymupdf" },
@@ -1235,8 +1235,8 @@ wheels = [
 
 [[package]]
 name = "tagdoc"
-version = "0.2.1"
-source = { git = "https://github.com/fre-ms/tagdoc?tag=v0.2.1#38528a8354863178e0ba0f28dcca514b7c2bb4a3" }
+version = "0.3.0"
+source = { git = "https://github.com/fre-ms/tagdoc?tag=v0.3.0#fc21c6d6aa6e9a5cd202b83e6a687086847919de" }
 dependencies = [
     { name = "doccor" },
     { name = "pymupdf" },
@@ -1245,6 +1245,10 @@ dependencies = [
 [package.optional-dependencies]
 gui = [
     { name = "pyside6-essentials" },
+]
+heic = [
+    { name = "pillow" },
+    { name = "pillow-heif" },
 ]
 
 [[package]]

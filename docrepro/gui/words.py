@@ -27,17 +27,20 @@ WORDS: dict[str, tuple[str, str]] = {  # key: (English, German)
     "chain_person": ("in use, changed by hand", "in Gebrauch, von Hand geändert"),
     "chain_stale": ("in use, to be made anew", "in Gebrauch, neu zu machen"),
     "chain_missing": ("not installed", "nicht installiert"),
-    "chain_photo": ("in this window a picture goes on as a PDF",
-                    "in diesem Fenster geht ein Bild als PDF weiter"),
+    "chain_rebound": ("optdoc is handed another file now (typdoc was switched), whose pages it "
+                      "could not match: it starts anew, and what was decided in it went.",
+                      "optdoc bekommt jetzt eine andere Datei (typdoc wurde umgeschaltet), deren "
+                      "Seiten nicht passen: es beginnt neu, und was darin entschieden war, ist "
+                      "verworfen."),
     "chain_needs": ("needs {needs}", "braucht {needs}"),
     "chain_off_tip": ("{step} is switched off (see the steps on the left).",
                       "{step} ist ausgeschaltet (siehe die Schritte links)."),
     "chain_none": ("No step is switched on: there is nothing to do.",
                    "Kein Schritt ist eingeschaltet: es gibt nichts zu tun."),
-    "chain_anew": ("ocrdoc reads another file now (optdoc was switched off): it starts anew, "
-                   "and what was decided in it went.",
-                   "ocrdoc liest jetzt eine andere Datei (optdoc wurde ausgeschaltet): es "
-                   "beginnt neu, und was darin entschieden war, ist verworfen."),
+    "chain_anew": ("ocrdoc reads another file now (a step before it was switched): it starts "
+                   "anew, and what was decided in it went.",
+                   "ocrdoc liest jetzt eine andere Datei (ein Schritt davor wurde umgeschaltet): "
+                   "es beginnt neu, und was darin entschieden war, ist verworfen."),
     "opening_step": ("The step opens on the result of the one before …",
                      "Der Schritt öffnet sich auf dem Ergebnis des vorigen …"),
     "describing": ("ocrdoc writes its result for the description (reading the pages not read "

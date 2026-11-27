@@ -72,16 +72,17 @@ docrepro models fetch page-orientation --to models/
 docrepro run scan.pdf --out results/ --models models/
 docrepro run scan.pdf --out results/ --without optdoc      # read the scan as it came
 docrepro run photo.heic --out results/ --without ocrdoc --without tagdoc   # prepare only
-docrepro run photo.heic --out results/ --without typdoc --without tagdoc   # it stays a HEIC, read
+docrepro run photo.heic --out results/ --without typdoc   # it stays a HEIC: prepared, read, described
 ```
 
 `run` writes the last step's files under the original's name (`<name>.pdf` with ocrdoc's text layer and
 tagdoc's description, `<name>.reading.json`, `<name>.md`) and the chain document `<name>.docrepro.json`, and nothing anywhere else: what the steps make
 on the way goes into a hidden folder inside the results and is removed at once. `--without <step>` leaves a
-step out. A picture goes on as a PDF through typdoc; with typdoc left out it stays a picture: optdoc gives
-back the type it got, and ocrdoc reads the picture and lays its reading beside it. tagdoc reads PDFs only,
-as it stands, and is left out with typdoc. With optdoc left out, ocrdoc reads what it is handed, unprepared:
-the picture as typdoc bound it, or the picture itself. `edit`
+step out. A picture goes on as a PDF through typdoc; with typdoc left out it stays a picture through every
+step: optdoc gives back the type it got, ocrdoc reads the picture and lays its reading beside it, tagdoc
+writes its description into the picture (or beside it, for a type without a place for one). With optdoc
+left out, ocrdoc reads what it is handed, unprepared: the picture as typdoc bound it, or the picture itself.
+`edit`
 opens one window with a tab for every panel of the steps (optdoc's preparation, ocrdoc's filters, areas and
 text, tagdoc's description) and, on the left, the steps themselves: each with a switch and what became of it
 (off; in use as suggested; changed by hand; to be made anew), a filled or an empty circle on its tabs.
@@ -125,12 +126,8 @@ faster-starting folder with `--onedir`. See [docs/sidecar.md](docs/sidecar.md).
   one with the electronic health professional card, or an advanced one with a software certificate),
   resting on TimeAttest. It will be off unless a person asks for it, and cannot be made again, only
   verified: the steps before it are made again byte for byte and compared with what was signed.
-- **The file keeps its type.** No step is to force PDF: a picture will go through every step as a picture
-  (optdoc writes the prepared picture in the format it came in, ocrdoc lays its reading beside it, tagdoc
-  writes into the picture or a sidecar as medRDS says for the format). typdoc, the one step that changes
-  the type, is there, and optdoc and ocrdoc keep the type they are handed; tagdoc still reads PDFs only,
-  and until it does not, the window keeps typdoc on for a picture. The design: `docs/family-design.md` in
-  optdoc.
+- What a person decided in ocrdoc goes when typdoc is switched in the window while optdoc is off (ocrdoc
+  then has no frames to go by); the page of a picture is the same either way, so it could go over.
 - Several pictures of one document through the whole chain (typdoc binds several on its own already).
 
 ## Licence
