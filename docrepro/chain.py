@@ -265,11 +265,11 @@ class Chain:
                                    "dropped": [n + 1 for n in adapter.dropped(project)]})
                 finally:
                     adapter.close(project)
-                files.update({k: v for k, v in paths.items() if k not in ("pdf", "config")})
-                source = paths["pdf"]
+                files.update({k: v for k, v in paths.items() if k not in ("document", "config")})
+                source = paths["document"]
             chain = documents.document_bytes(self.document(made))
             written = self._write(out, stem, source, chain, files)
-        with pymupdf.open(written["pdf"]) as finished:
+        with pymupdf.open(written["document"]) as finished:
             pages = len(finished)
         return {**{k: str(v) for k, v in written.items()}, "pages": pages, "steps": report,
                 "not_installed": [s.name for s in STEPS
@@ -291,9 +291,9 @@ class Chain:
             finished = documents.finished_pdf(doc, [*carried, chain], f"docrepro {__version__}")
         finally:
             doc.close()
-        written = {"pdf": out / f"{stem}.pdf", "config": out / f"{stem}{SUFFIX}"}
+        written = {"document": out / f"{stem}.pdf", "config": out / f"{stem}{SUFFIX}"}
         try:
-            written["pdf"].write_bytes(finished)
+            written["document"].write_bytes(finished)
             written["config"].write_bytes(chain)
             for kind, path in files.items():
                 target = out / path.name

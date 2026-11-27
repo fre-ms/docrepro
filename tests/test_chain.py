@@ -22,7 +22,7 @@ needs_engine = pytest.mark.skipif(not ocrlib.available_backends(), reason="no OC
 
 
 def _files(answer: dict) -> dict[str, bytes]:
-    return {k: Path(answer[k]).read_bytes() for k in ("pdf", "reading", "markdown", "config")}
+    return {k: Path(answer[k]).read_bytes() for k in ("document", "reading", "markdown", "config")}
 
 
 @needs_engine
@@ -51,7 +51,7 @@ def test_the_whole_way_again_from_the_chain_document(tmp_path: Path, report: Pat
     assert in_use(chain) == in_use(first)
     assert by_tool(chain)["typdoc"] == {"tool": "typdoc", "used": False}
     assert by_tool(chain)["optdoc"]["config"]["pages"][0]["plan"]["straighten"] is True
-    with pymupdf.open(first["pdf"]) as doc:
+    with pymupdf.open(first["document"]) as doc:
         assert sorted(doc.embfile_names()) == [EMBEDDED, "ocrdoc.json", "optdoc.json",
                                                "tagdoc.json"]
         assert "Ramipril" in doc[0].get_text()
@@ -59,7 +59,7 @@ def test_the_whole_way_again_from_the_chain_document(tmp_path: Path, report: Pat
         packet = doc.get_xml_metadata()
         assert "<xmp:CreatorTool>docrepro " in packet and "<dc:type><rdf:Bag><rdf:li>" in packet
         assert doc.metadata["creator"].startswith("docrepro ")
-    for given in (Path(first["config"]), Path(first["pdf"])):
+    for given in (Path(first["config"]), Path(first["document"])):
         again = Chain.open(original, chain=load_chain(given)).run(tmp_path / given.suffix[1:])
         assert _files(again) == _files(first), given.name
 
@@ -85,7 +85,7 @@ def test_a_change_in_optdoc_and_a_persons_work_in_ocrdoc(tmp_path: Path, report:
 
         prepared = preparation.build()
         try:
-            pdf = output.write(prepared, work)["pdf"]
+            pdf = output.write(prepared, work)["document"]
         finally:
             prepared.close()
     finally:
@@ -158,8 +158,8 @@ def test_every_step_is_optional(tmp_path: Path, report: Path) -> None:
     assert in_use(read) == [("typdoc", False), ("optdoc", False), ("ocrdoc", True),
                             ("tagdoc", True)]
     assert by_tool(read)["optdoc"] == {"tool": "optdoc", "used": False}
-    assert _embedded(read["pdf"]) == [EMBEDDED, "ocrdoc.json", "tagdoc.json"]
-    with pymupdf.open(read["pdf"]) as doc:
+    assert _embedded(read["document"]) == [EMBEDDED, "ocrdoc.json", "tagdoc.json"]
+    with pymupdf.open(read["document"]) as doc:
         assert "Ramipril" in doc[0].get_text()  # ocrdoc read the original as it came
     chain = load_chain(read["config"])
     assert by_tool(chain)["optdoc"] == {"tool": "optdoc", "used": False}
@@ -170,16 +170,16 @@ def test_every_step_is_optional(tmp_path: Path, report: Path) -> None:
     assert in_use(prepared)[:2] == [("typdoc", False), ("optdoc", True)]
     assert sorted(p.name for p in (tmp_path / "prepared").iterdir()) == [
         "scan.docrepro.json", "scan.pdf"]
-    assert _embedded(prepared["pdf"]) == [EMBEDDED, "optdoc.json"]
+    assert _embedded(prepared["document"]) == [EMBEDDED, "optdoc.json"]
     assert "reading" not in prepared and "markdown" not in prepared
-    with pymupdf.open(prepared["pdf"]) as doc:
+    with pymupdf.open(prepared["document"]) as doc:
         assert doc[0].get_text().strip() == ""  # prepared, not read
 
     described = Chain.open(report, without=("optdoc", "ocrdoc")).run(tmp_path / "described")
-    assert _embedded(described["pdf"]) == [EMBEDDED, "tagdoc.json"]
-    with pymupdf.open(described["pdf"]) as doc:
+    assert _embedded(described["document"]) == [EMBEDDED, "tagdoc.json"]
+    with pymupdf.open(described["document"]) as doc:
         assert "<dc:type>" in doc.get_xml_metadata() and "Ramipril" in doc[0].get_text()
-    for key in ("pdf", "config"):
+    for key in ("document", "config"):
         once_more = Chain.open(report, chain=load_chain(described["config"])).run(
             tmp_path / "described-again")
         assert Path(once_more[key]).read_bytes() == Path(described[key]).read_bytes(), key
@@ -210,8 +210,8 @@ def test_a_picture_goes_on_as_a_pdf(tmp_path: Path, report: Path) -> None:
     read = Chain.open(photo, settings={"reader": "none"}, without=("optdoc",)).run(
         tmp_path / "read")  # typdoc alone makes the PDF the later steps take
     assert in_use(read)[:2] == [("typdoc", True), ("optdoc", False)]
-    assert _embedded(read["pdf"]) == [EMBEDDED, "ocrdoc.json", "tagdoc.json"]
-    with pymupdf.open(read["pdf"]) as doc:  # the photo itself is in it, byte for byte
+    assert _embedded(read["document"]) == [EMBEDDED, "ocrdoc.json", "tagdoc.json"]
+    with pymupdf.open(read["document"]) as doc:  # the photo itself is in it, byte for byte
         assert photo.read_bytes() in doc.xref_stream_raw(doc[0].get_images()[0][0])
     as_before = Chain.open(photo, settings={"reader": "none"}, without=("typdoc",)).run(
         tmp_path / "as-before")
@@ -239,7 +239,7 @@ def test_a_step_switched_off_keeps_what_it_held(tmp_path: Path, report: Path) ->
     second = Chain.open(report, chain=chain).run(tmp_path / "b")
     assert in_use(second) == [("typdoc", False), ("optdoc", True), ("ocrdoc", True),
                               ("tagdoc", False)]
-    assert _embedded(second["pdf"]) == [EMBEDDED, "ocrdoc.json", "optdoc.json"]
+    assert _embedded(second["document"]) == [EMBEDDED, "ocrdoc.json", "optdoc.json"]
     written = load_chain(second["config"])
     assert in_use(written) == [("typdoc", False), ("optdoc", True), ("ocrdoc", True),
                                ("semdoc", False), ("tagdoc", False)]
@@ -250,4 +250,4 @@ def test_a_step_switched_off_keeps_what_it_held(tmp_path: Path, report: Path) ->
                                    if s["tool"] in ("typdoc", "optdoc", "ocrdoc")),
                                  {"tool": "tagdoc", "used": True, "config": held}]}
     third = Chain.open(report, chain=back).run(tmp_path / "c")
-    assert Path(third["pdf"]).read_bytes() == Path(first["pdf"]).read_bytes()
+    assert Path(third["document"]).read_bytes() == Path(first["document"]).read_bytes()

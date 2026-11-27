@@ -48,7 +48,7 @@ class _Annotations:
         pdf.write_bytes(project["source"].read_bytes())
         notes = folder / f"{stem}.annotations.json"
         notes.write_text("[]", encoding="utf-8")
-        return {"pdf": pdf, "annotations": notes}
+        return {"document": pdf, "annotations": notes}
 
     def dropped(self, project: Any) -> list[int]:
         return []

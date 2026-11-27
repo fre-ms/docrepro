@@ -183,14 +183,14 @@ def check(program: Path, models: Path | None = None) -> dict[str, object]:
             [str(program), "run", str(photo), "--out", str(work / "again"), "--config",
              answer["config"]], env)
         assert status == 0, again
-        for key in ("pdf", "reading", "markdown", "config"):
+        for key in ("document", "reading", "markdown", "config"):
             assert Path(again[key]).read_bytes() == Path(answer[key]).read_bytes(), key
         checks["reproduced"] = "the same four files again from the chain document, byte for byte"
         status, edited, _, timings["edit --self-test"] = _run(
             [str(program), "edit", str(photo), "--out", str(work / "edited"), "--self-test"],
             {**env, "QT_QPA_PLATFORM": "offscreen"})
         assert status == 0 and edited["finished"], edited
-        assert Path(edited["pdf"]).read_bytes() == Path(answer["pdf"]).read_bytes()
+        assert Path(edited["document"]).read_bytes() == Path(answer["document"]).read_bytes()
         assert not _left(work, empty), _left(work, empty)
         checks["window"] = ("opened without a screen, every tab shown, applied, the same PDF, "
                             "nothing left behind")
@@ -198,15 +198,15 @@ def check(program: Path, models: Path | None = None) -> dict[str, object]:
             [str(program), "optdoc", "run", str(photo), "--out", str(work / "s1")], env)
         assert status == 0 and one["cleaned_up"] == [1], one
         status, two, _, timings["ocrdoc run"] = _run(
-            [str(program), "ocrdoc", "run", one["pdf"], "--out", str(work / "s2")], env)
+            [str(program), "ocrdoc", "run", one["document"], "--out", str(work / "s2")], env)
         assert status == 0 and two["ocr_pages"] == [1] and two["carried"] == ["optdoc.json"], two
         status, three, _, timings["tagdoc run"] = _run(
-            [str(program), "tagdoc", "run", two["pdf"], "--out", str(work / "s3")], env)
+            [str(program), "tagdoc", "run", two["document"], "--out", str(work / "s3")], env)
         assert status == 0 and three["problems"] == [], three
         status, zero, _, timings["typdoc run"] = _run(
             [str(program), "typdoc", "run", str(photo), "--out", str(work / "s0")], env)
         assert status == 0 and zero["pages"] == 1 and zero["bound"][0]["attached"] is False, zero
-        assert photo.read_bytes() in Path(zero["pdf"]).read_bytes()  # byte for byte
+        assert photo.read_bytes() in Path(zero["document"]).read_bytes()  # byte for byte
         checks["steps one by one"] = ("typdoc, optdoc, ocrdoc and tagdoc through their own "
                                       "command lines")
         status, answer, _, _ = _run([str(program), "run", str(work / "fehlt.jpg")])
@@ -247,7 +247,7 @@ def check(program: Path, models: Path | None = None) -> dict[str, object]:
                 [str(program), "run", str(turned), "--out", str(work / "upright-again"),
                  "--config", answer["config"]], env)
             assert status == 0, again
-            for key in ("pdf", "reading", "markdown", "config"):
+            for key in ("document", "reading", "markdown", "config"):
                 assert Path(again[key]).read_bytes() == Path(answer[key]).read_bytes(), key
             assert not _left(work, empty), _left(work, empty)
             checks["models, used"] = ("a scan on its head set upright by the orientation model "

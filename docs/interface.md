@@ -1,21 +1,25 @@
 # docrepro's command line as an interface
 
-**Interface 2**, since docrepro 0.3.0 (this description: docrepro 0.4.0). This is what a program may rely on
-when it calls docrepro, a records app above all, which ships one program instead of one per step.
+**Interface 3**, since docrepro 0.5.0. This is what a program may rely on when it calls docrepro, a records
+app above all, which ships one program instead of one per step.
 
 Every answer carries `interface`; it goes up when something a caller relies on changes in a way that breaks
 it. Within one interface, new fields, options and kinds of error may come; a caller ignores what it does not
 know. The steps' own command lines (`docrepro optdoc …`, `docrepro ocrdoc …`) keep their own interfaces
-(optdoc's 3, ocrdoc's 1), described in their repositories.
+(typdoc's 2, optdoc's 4, ocrdoc's 2, tagdoc's 2), described in their repositories.
 
-**From interface 1:** every step is optional. `--without <step>` leaves a step out; the answer's `steps`
-name every installed step and say whether it was in use (`used`); the chain document is version 2 (each
-step says `used`; version 1 is no longer read: `bad-config`, reason `format`); a step the chain document
-does not name is not in use (it started fresh before); new kinds of error `step-needs` and `no-steps`.
-Models as an optional download came within interface 1 (docrepro 0.2.0) and stay as they are.
+**From interface 2:** the answer names the document `document`, no longer `pdf`, here and in every step's
+own answer. No step is to force a file type, so the document need not be a PDF, and a field called `pdf`
+would then point at a picture. A caller reads `document` where it read `pdf`; nothing else changed.
 
-**Added within interface 2 (docrepro 0.4.0):** typdoc as step 5, the one step that changes a document's
-type. It binds a picture into a PDF as medRDS says and is in use for pictures unless left out
+**From interface 1 (docrepro 0.3.0):** every step is optional. `--without <step>` leaves a step out; the
+answer's `steps` name every installed step and say whether it was in use (`used`); the chain document is
+version 2 (each step says `used`; version 1 is no longer read: `bad-config`, reason `format`); a step the
+chain document does not name is not in use (it started fresh before); new kinds of error `step-needs` and
+`no-steps`. Models as an optional download came within interface 1 (docrepro 0.2.0) and stay as they are.
+
+**Added within interface 2 (docrepro 0.4.0), and kept:** typdoc as step 5, the one step that changes a
+document's type. It binds a picture into a PDF as medRDS says and is in use for pictures unless left out
 (`--without typdoc`); for a PDF it has nothing to do. The answer's `steps`, `about` and the chain document
 name it like every step. attdoc, the signing step to come (order 50), is named in `about`.
 
@@ -39,15 +43,15 @@ to docrepro. docrepro never goes on the network while it works; the one command 
 
 | field | example | meaning |
 |---|---|---|
-| `interface` | `2` | the version of this description |
-| `made_with` | `"docrepro 0.4.0"` | the program and its version |
+| `interface` | `3` | the version of this description |
+| `made_with` | `"docrepro 0.5.0"` | the program and its version |
 
 ## `about`
 
 ```json
-{"interface": 2, "made_with": "docrepro 0.4.0", "version": "0.4.0", "window": true,
+{"interface": 3, "made_with": "docrepro 0.5.0", "version": "0.5.0", "window": true,
  "steps": [{"tool": "optdoc", "order": 10, "takes": "original", "gives": "pdf",
-            "does": {"en": "…", "de": "…"}, "planned": false, "installed": true, "version": "0.8.0"},
+            "does": {"en": "…", "de": "…"}, "planned": false, "installed": true, "version": "0.9.0"},
            {"tool": "typdoc", "order": 5, "…": "…"},
            {"tool": "ocrdoc", "order": 20, "…": "…"},
            {"tool": "semdoc", "order": 30, "takes": "reading", "gives": "annotations",
@@ -115,12 +119,12 @@ document does not name it, and it may stand beside `--config`.
 The answer:
 
 ```json
-{"interface": 2, "made_with": "docrepro 0.4.0",
- "pdf": "<folder>/<stem>.pdf", "config": "<folder>/<stem>.docrepro.json",
+{"interface": 3, "made_with": "docrepro 0.5.0",
+ "document": "<folder>/<stem>.pdf", "config": "<folder>/<stem>.docrepro.json",
  "reading": "<folder>/<stem>.reading.json", "markdown": "<folder>/<stem>.md",
  "pages": 2,
- "steps": [{"tool": "optdoc", "used": true, "made_with": "optdoc 0.8.0", "dropped": []},
-           {"tool": "ocrdoc", "used": true, "made_with": "ocrdoc 0.2.0", "dropped": [2]},
+ "steps": [{"tool": "optdoc", "used": true, "made_with": "optdoc 0.9.0", "dropped": []},
+           {"tool": "ocrdoc", "used": true, "made_with": "ocrdoc 0.3.0", "dropped": [2]},
            {"tool": "tagdoc", "used": false}],
  "not_installed": ["semdoc"]}
 ```
@@ -167,7 +171,7 @@ No step needs a model; a step lists one only after it did better, measured, than
 docrepro lists the models of every installed step, each with its step:
 
 ```json
-{"interface": 2, "made_with": "docrepro 0.4.0",
+{"interface": 3, "made_with": "docrepro 0.5.0",
  "models": [{"step": "optdoc", "name": "page-orientation", "file": "pp-lcnet-x1-0-doc-ori.onnx",
              "url": "https://huggingface.co/PaddlePaddle/PP-LCNet_x1_0_doc_ori_onnx/resolve/…/inference.onnx",
              "sha256": "af9a0a4f…", "bytes": 6788069, "licence": "Apache-2.0",
@@ -207,13 +211,13 @@ its bench (ocrdoc's `docs/interface.md`).
 ## The chain document: `docrepro-chain`, version 2
 
 ```json
-{"format": "docrepro-chain", "version": 2, "made_with": "docrepro 0.4.0",
+{"format": "docrepro-chain", "version": 2, "made_with": "docrepro 0.5.0",
  "original": {"sha256": "…", "bytes": 245678, "suffix": ".jpg"},
- "steps": [{"tool": "typdoc", "used": true, "made_with": "typdoc 0.1.0",
+ "steps": [{"tool": "typdoc", "used": true, "made_with": "typdoc 0.2.0",
             "config": {"format": "typdoc-config", "…": "…"}},
-           {"tool": "optdoc", "used": true, "made_with": "optdoc 0.8.0",
+           {"tool": "optdoc", "used": true, "made_with": "optdoc 0.9.0",
             "config": {"format": "optdoc-config", "…": "…"}},
-           {"tool": "ocrdoc", "used": true, "made_with": "ocrdoc 0.2.0",
+           {"tool": "ocrdoc", "used": true, "made_with": "ocrdoc 0.3.0",
             "config": {"format": "ocrdoc-config", "…": "…"}},
            {"tool": "tagdoc", "used": false, "config": {"format": "tagdoc-config", "…": "…"}}]}
 ```

@@ -126,8 +126,8 @@ class Adapter(Protocol):
 
     def write(self, project: Any, folder: Path, stem: str,
               progress: Progress | None) -> dict[str, Path]:
-        """Make the result and write it into ``folder``; its files by kind ("pdf", and
-        what else the step writes)."""
+        """Make the result and write it into ``folder``; its files by kind: "document",
+        the file the next step is handed, and what else the step writes."""
 
     def dropped(self, project: Any) -> list[int]:
         """The pages (from 0) whose decisions went, since the input changed under them."""

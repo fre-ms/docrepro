@@ -11,18 +11,18 @@ It joins a family of tools, one tool for one step, each usable on its own:
 
 | order | tool | its step | status |
 |---|---|---|---|
-| 5 | [typdoc](https://github.com/fre-ms/typdoc) | changes the type, and nothing else: binds pictures into one PDF as medRDS says, each in it byte for byte | 0.1 |
-| 10 | [optdoc](https://github.com/fre-ms/optdoc) | makes the page faithful: upright, unwarped in its true proportions, evenly lit, in its colours | 0.8 |
-| 20 | [ocrdoc](https://github.com/fre-ms/ocrdoc) | recognises areas, text, tables and barcodes, and lays the text over the page | 0.2 |
+| 5 | [typdoc](https://github.com/fre-ms/typdoc) | changes the type, and nothing else: binds pictures into one PDF as medRDS says, each in it byte for byte | 0.2 |
+| 10 | [optdoc](https://github.com/fre-ms/optdoc) | makes the page faithful: upright, unwarped in its true proportions, evenly lit, in its colours | 0.9 |
+| 20 | [ocrdoc](https://github.com/fre-ms/ocrdoc) | recognises areas, text, tables and barcodes, and lays the text over the page | 0.3 |
 | 30 | semdoc | understands the text: medical terms and identifying information (through lexterm and lexident) | planned |
-| 40 | [tagdoc](https://github.com/fre-ms/tagdoc) | describes the document: title, kind, date, authors, the people it names with copies of their cards, written as medRDS says (XMP and the information dictionary, or a sidecar) | 0.1 |
+| 40 | [tagdoc](https://github.com/fre-ms/tagdoc) | describes the document: title, kind, date, authors, the people it names with copies of their cards, written as medRDS says (XMP and the information dictionary, or a sidecar) | 0.2 |
 | 50 | attdoc | signs the document: a time stamp, a person's signature, resting on TimeAttest | planned |
 
 What they share (configuration documents, the command line's manners, no network, the window's building
 blocks) is [doccor](https://github.com/fre-ms/doccor)'s. Why the work is divided so, and the contract every
 step keeps: `docs/family-design.md` in optdoc.
 
-**Status: pre-alpha (0.4.0).**
+**Status: pre-alpha (0.5.0).**
 
 ## The chain and its document
 

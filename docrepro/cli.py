@@ -29,7 +29,7 @@ from docrepro.chain import SUFFIX, Chain, load_chain
 from docrepro.errors import DocreproError
 from docrepro.steps import STEPS, adapter, catalogue
 
-INTERFACE = 2  # the version of docs/interface.md the answers follow
+INTERFACE = 3  # the version of docs/interface.md the answers follow
 TOOL = "docrepro"
 
 # the settings of the steps, by option: the name a step's options know it by

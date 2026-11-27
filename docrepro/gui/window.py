@@ -332,7 +332,7 @@ class ChainWindow(QMainWindow):
         self._round += 1
         folder = self.work / "typdoc" / str(self._round)
         made: Path = self.typdoc.write(self.bound_project, folder, self.chain.original.stem,
-                                       None)["pdf"]
+                                       None)["document"]
         return made
 
     def _rebind(self) -> None:
@@ -369,7 +369,7 @@ class ChainWindow(QMainWindow):
         if "optdoc" in self.used:
             folder = self.work / "optdoc" / str(self._round)
             pdf = self.optdoc.write(self.prepared_project, folder, self.chain.original.stem,
-                                    None)["pdf"]
+                                    None)["document"]
         else:
             pdf = self._origin
         held = (self.ocrdoc.config(self.read_project) if self.read_project is not None
@@ -432,7 +432,7 @@ class ChainWindow(QMainWindow):
         if "ocrdoc" in self.used:
             folder = self.work / "ocrdoc" / str(self._round)
             pdf = self.ocrdoc.write(self.read_project, folder, self.chain.original.stem,
-                                    None)["pdf"]
+                                    None)["document"]
         else:
             pdf = self._read_source
         old = self.later_projects[step.name]

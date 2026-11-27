@@ -47,7 +47,7 @@ def test_filed_by_a_records_app_and_made_again(tmp_path: Path) -> None:
     script = _FILE % {"lib": (MEDRDS / "lib" / "index.mjs").as_posix(),
                       "schema": (MEDRDS / "schema" / "medrds.json").as_posix()}
     filed = tmp_path / "abgelegt.pdf"
-    run = subprocess.run(["node", "--input-type=module", "-e", script, "--", first["pdf"],
+    run = subprocess.run(["node", "--input-type=module", "-e", script, "--", first["document"],
                           str(filed)], capture_output=True, text=True, check=True)
     read = json.loads(run.stdout)
     assert read["described"]["kind"] == "lab" and read["described"]["date"] == "2026-03-12"
@@ -55,7 +55,8 @@ def test_filed_by_a_records_app_and_made_again(tmp_path: Path) -> None:
     for key in ("kind", "date", "title", "creatorTool"):  # tagdoc's description stays
         assert read["filed"][key] == read["described"][key], key
     assert read["filed"]["patient"] == "K7Q4MX2PT"  # beside what the records app wrote
-    assert filed.read_bytes().startswith(Path(first["pdf"]).read_bytes())  # appended, not rewritten
+    # appended, not rewritten
+    assert filed.read_bytes().startswith(Path(first["document"]).read_bytes())
     again = Chain.open(original, chain=load_chain(filed)).run(tmp_path / "b")
-    for key in ("pdf", "reading", "markdown", "config"):
+    for key in ("document", "reading", "markdown", "config"):
         assert Path(again[key]).read_bytes() == Path(first[key]).read_bytes(), key

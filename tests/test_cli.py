@@ -132,7 +132,7 @@ def test_run_on_the_command_line(tmp_path: Path, report: Path) -> None:
     assert edit.returncode == 0, edit.stdout
     edited = json.loads(edit.stdout)
     assert edited["finished"] is True
-    for key in ("pdf", "reading", "markdown", "config"):
+    for key in ("document", "reading", "markdown", "config"):
         assert Path(edited[key]).read_bytes() == Path(answer[key]).read_bytes(), key
     for name, folder in elsewhere.items():
         assert not any(folder.rglob("*")), name

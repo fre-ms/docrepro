@@ -72,7 +72,7 @@ def test_every_step_gets_the_folder(tmp_path: Path, report: Path) -> None:
     assert "typdoc" not in chain.used  # a PDF: nothing to bind
     with_folder = chain.run(tmp_path / "a")
     without = Chain.open(report, settings={"reader": "none"}).run(tmp_path / "b")
-    for key in ("pdf", "config"):
+    for key in ("document", "config"):
         assert Path(with_folder[key]).read_bytes() == Path(without[key]).read_bytes(), key
     assert "models" not in Path(with_folder["config"]).read_text(encoding="utf-8")
 
@@ -90,10 +90,10 @@ def test_a_scan_on_its_head_comes_out_upright_and_read(
     pages = by_tool(chain)["optdoc"]["config"]["pages"]
     assert all(p["plan"]["rotation"] == 180 and p["models"] == ["page-orientation"]
                for p in pages)
-    with pymupdf.open(first["pdf"]) as doc:
+    with pymupdf.open(first["document"]) as doc:
         assert "Ramipril" in doc[0].get_text()
     status, again = _answer(capsys, ["run", str(original), "--out", str(tmp_path / "b"),
                                      "--config", first["config"]])
     assert status == 0
-    for key in ("pdf", "reading", "markdown", "config"):
+    for key in ("document", "reading", "markdown", "config"):
         assert Path(first[key]).read_bytes() == Path(again[key]).read_bytes(), key

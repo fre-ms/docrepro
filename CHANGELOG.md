@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.0 (2026-11-27)
+
+Interface 3: one field renamed, in every tool of docrepro at once (typdoc 0.2.0, optdoc 0.9.0,
+ocrdoc 0.3.0, tagdoc 0.2.0).
+
+- **The answer names the document `document`**, no longer `pdf`: in `run` and `edit`, in every
+  step's own answer, and between the steps (an adapter's `write` gives the file the next step is
+  handed under that key). No step is to force a file type, so the document need not be a PDF, and
+  a field called `pdf` would then point at a picture. The tools still write PDFs; that a picture
+  stays a picture is to come. Callers read `document` where they read `pdf`.
+
 ## 0.4.0 (2026-11-27)
 
 typdoc joins as step 5: the one step that changes a document's type. Interface 2 and
