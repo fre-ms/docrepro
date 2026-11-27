@@ -22,6 +22,20 @@ _OWN: dict[str, dict[str, str]] = {
         "de": "Der Schritt {step} braucht den Schritt {needs}, der ausgeschaltet oder nicht "
               "installiert ist.",
     },
+    "several-originals": {
+        "en": "Several files are one document only where typdoc binds them into one PDF "
+              "(pictures, typdoc in use); here they are several. {tool} run takes them one by "
+              "one; the window and a chain document work on one document.",
+        "de": "Mehrere Dateien sind nur ein Dokument, wo typdoc sie zu einem PDF bindet (Bilder, "
+              "typdoc in Gebrauch); hier sind es mehrere. {tool} run nimmt sie einzeln; das "
+              "Fenster und ein Kettendokument arbeiten auf einem Dokument.",
+    },
+    "same-stem": {
+        "en": "Two of the files have the same name before their ending; their results would "
+              "overwrite each other. Rename one, or take them one by one.",
+        "de": "Zwei der Dateien heißen vor ihrer Endung gleich; ihre Ergebnisse würden einander "
+              "überschreiben. Eine umbenennen oder sie einzeln nehmen.",
+    },
     "no-steps": {
         "en": "No step is switched on: there is nothing to do.",
         "de": "Kein Schritt ist eingeschaltet: es gibt nichts zu tun.",

@@ -1,6 +1,6 @@
 [project]
 name = "docrepro"
-version = "0.8.0"
+version = "0.9.0"
 description = "Reproduces photographed and scanned documents as digital documents: optdoc, ocrdoc and tagdoc (semdoc to come) in one chain, one window and one program, every step reproducible."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -23,23 +23,23 @@ dependencies = [
   "doccor>=0.3",
   # the steps; a step that is missing is left out of the chain and the window.
   # Step 5 joins through its entry point docrepro.steps
-  "typdoc>=0.2.1",
+  "typdoc>=0.3",
   "optdoc[cleanup]>=0.11",
   "ocrdoc[ocr,tables,barcodes]>=0.4",
   # step 40; it joins through its entry point docrepro.steps
-  "tagdoc[heic]>=0.3",
+  "tagdoc[heic]>=0.4",
 ]
 
 [project.optional-dependencies]
-gui = ["optdoc[gui]>=0.11", "ocrdoc[gui]>=0.4", "tagdoc[gui]>=0.3"]
+gui = ["optdoc[gui]>=0.11", "ocrdoc[gui]>=0.4", "tagdoc[gui]>=0.4"]
 
 [tool.uv.sources]
 doccor = { git = "https://github.com/fre-ms/doccor", tag = "v0.3.0" }
 # released tags: docrepro moves to a new version of a step on purpose
 optdoc = { git = "https://github.com/fre-ms/optdoc", tag = "v0.11.0" }
 ocrdoc = { git = "https://github.com/fre-ms/ocrdoc", tag = "v0.4.0" }
-tagdoc = { git = "https://github.com/fre-ms/tagdoc", tag = "v0.3.0" }
-typdoc = { git = "https://github.com/fre-ms/typdoc", tag = "v0.2.1" }
+tagdoc = { git = "https://github.com/fre-ms/tagdoc", tag = "v0.4.0" }
+typdoc = { git = "https://github.com/fre-ms/typdoc", tag = "v0.3.0" }
 
 [project.scripts]
 docrepro = "docrepro.cli:main"

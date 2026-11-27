@@ -25,17 +25,17 @@ from doccor import cli as frame
 from doccor.models import Model
 
 from docrepro import __version__, gui
-from docrepro.chain import SUFFIX, Chain, load_chain
+from docrepro.chain import SUFFIX, Chain, load_chain, one_document, run_each
 from docrepro.errors import DocreproError
 from docrepro.steps import STEPS, adapter, catalogue
 
-INTERFACE = 4  # the version of docs/interface.md the answers follow
+INTERFACE = 5  # the version of docs/interface.md the answers follow
 TOOL = "docrepro"
 
 # the settings of the steps, by option: the name a step's options know it by
 _SETTINGS = {"photo": "photo", "no_clean_up": "clean_up",
              "colour_pages": "colour_pages", "reader": "reader", "languages": "languages",
-             "no_cells": "cells", "no_areas": "areas"}
+             "no_cells": "cells", "no_areas": "areas", "camera_date": "camera_date"}
 
 
 def _progress(step: str, page: int, of: int) -> None:
@@ -99,20 +99,42 @@ def _chain(args: argparse.Namespace) -> Chain:
     if args.config is not None:
         if settings or args.without:  # the chain document decides both
             raise DocreproError("usage")
-        chain = Chain.open(args.file, chain=load_chain(args.config))
+        chain = Chain.open(args.files, chain=load_chain(args.config))
     else:
-        chain = Chain.open(args.file, settings=settings, without=args.without or ())
+        chain = Chain.open(args.files, settings=settings, without=args.without or ())
     chain.models = args.models
     return chain
 
 
 def _out(args: argparse.Namespace) -> Path:
-    """The folder for the results: ``--out``, else ``<file>.docrepro`` beside the file."""
-    return args.out or args.file.with_name(f"{args.file.stem}.docrepro")
+    """The folder for the results: ``--out``, else ``<file>.docrepro`` beside the (first)
+    file."""
+    return args.out or args.files[0].with_name(f"{args.files[0].stem}.docrepro")
+
+
+def _each_progress(document: int, step: str, page: int, of: int) -> None:
+    """One line of progress where several documents are made one after another."""
+    frame.said.write(json.dumps({"document": document, "step": step, "page": page,
+                                 "of": of}) + "\n")
+    frame.said.flush()
+
+
+def _separately(args: argparse.Namespace) -> bool:
+    """True where the files given are several documents: not bound into one by typdoc
+    (typdoc left out, a PDF among them), or each asked for by itself (``--each``)."""
+    return len(args.files) > 1 and (args.each or not one_document(args.files, args.without or ()))
 
 
 def _run(args: argparse.Namespace) -> dict[str, Any]:
-    """Take the original through every step and write the results."""
+    """Take the original through every step and write the results; several files that
+    are not one document each by itself."""
+    if _separately(args):
+        if args.config is not None:  # a chain document is of one document
+            raise DocreproError("usage")
+        return run_each(args.files, _out(args), _settings(args), args.without or (),
+                        args.models, _each_progress if args.progress else None)
+    if args.each:
+        raise DocreproError("usage")  # one file is one document anyway
     return _chain(args).run(_out(args), _progress if args.progress else None)
 
 
@@ -121,6 +143,8 @@ def _edit(args: argparse.Namespace) -> dict[str, Any]:
     chain document alone when they will continue later, nothing when they cancel."""
     if not gui.available():
         raise DocreproError("no-gui")
+    if _separately(args):
+        raise DocreproError("several-originals")  # the window works on one document
     from docrepro.gui.app import edit
 
     chain = _chain(args)  # the window sets which steps are in use (chain.used)
@@ -129,7 +153,7 @@ def _edit(args: argparse.Namespace) -> dict[str, Any]:
     if outcome == "cancelled":
         raise DocreproError("cancelled")
     if outcome == "saved":
-        saved = chain.save(configs, _out(args) / f"{args.file.stem}{SUFFIX}")
+        saved = chain.save(configs, _out(args) / f"{args.files[0].stem}{SUFFIX}")
         return {"config": str(saved), "finished": False}
     return {**chain.run(_out(args), _progress if args.progress else None, configs),
             "finished": True}
@@ -138,11 +162,18 @@ def _edit(args: argparse.Namespace) -> dict[str, Any]:
 def _document_options(pr: argparse.ArgumentParser) -> None:
     """The options of run and edit.  The settings default to None, so that the use of one
     beside ``--config`` can be told."""
-    pr.add_argument("file", type=Path, help="the original: a photo, an image or a PDF")
+    pr.add_argument("files", nargs="+", type=Path, metavar="file",
+                    help="the original: a photo, an image or a PDF; or several: the pictures "
+                         "of one document in their order, which typdoc binds into one PDF, else "
+                         "each file a document of its own")
     pr.add_argument("--out", type=Path, help="folder for the results (default: <file>.docrepro/)")
     pr.add_argument("--config", type=Path,
                     help="chain document to start from: <name>.docrepro.json, or a PDF "
                          "docrepro wrote")
+    pr.add_argument("--each", action="store_true",
+                    help="several files: each a document of its own, even pictures typdoc "
+                         "could bind into one (each picture becomes a PDF of its own where "
+                         "typdoc is in use)")
     pr.add_argument("--without", action="append", choices=[step.name for step in STEPS],
                     metavar="STEP",
                     help="leave a step out (optdoc, ocrdoc, tagdoc …); it hands on what it "
@@ -156,6 +187,9 @@ def _document_options(pr: argparse.ArgumentParser) -> None:
                     help="optdoc: leave the pages as they came unless a person prepares them")
     pr.add_argument("--colour-pages", choices=["jpeg", "png"],
                     help="optdoc: how a page in colour is stored (default: jpeg)")
+    pr.add_argument("--camera-date", choices=["never", "missing", "first"],
+                    help="tagdoc: the date a camera gives as the clinical date: never "
+                         "(default), where the text names none, or before the text's")
     pr.add_argument("--reader", choices=["auto", "rapidocr", "tesseract", "none"],
                     help="ocrdoc: OCR engine (default: auto)")
     pr.add_argument("--languages", help="ocrdoc: language packs (deu+eng for Tesseract)")

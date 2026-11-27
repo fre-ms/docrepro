@@ -140,3 +140,47 @@ def test_run_on_the_command_line(tmp_path: Path, report: Path) -> None:
         assert Path(edited[key]).read_bytes() == Path(answer[key]).read_bytes(), key
     for name, folder in elsewhere.items():
         assert not any(folder.rglob("*")), name
+
+
+
+def test_several_pictures_on_the_command_line(tmp_path: Path, report: Path,
+                                              capsys: pytest.CaptureFixture[str]) -> None:
+    from tests.synthetic import photo_of
+
+    first = photo_of(report, tmp_path / "eins.jpg")
+    second = photo_of(report, tmp_path / "zwei.jpg", rotation=-1.0)
+    status, answer, _ = _answer(capsys, ["run", str(first), str(second), "--out",
+                                         str(tmp_path / "out"), "--reader", "none"])
+    assert status == 0 and answer["pages"] == 2 and answer["interface"] == INTERFACE == 5
+    assert Path(answer["document"]).name == "eins.pdf"
+    done = _run(["run", str(first), str(second), "--out", str(tmp_path / "each"), "--without",
+                 "typdoc", "--without", "ocrdoc", "--without", "tagdoc", "--progress"])
+    answer = json.loads(done.stdout)
+    assert done.returncode == 0 and [Path(d["document"]).name for d in answer["documents"]] == [
+        "eins.jpg", "zwei.jpg"]  # not bound: each a document of its own, a picture still
+    lines = [json.loads(line) for line in done.stderr.splitlines()]
+    assert {line["document"] for line in lines} == {1, 2} and lines[0]["step"] == "optdoc"
+    status, answer, _ = _answer(capsys, ["run", str(first), str(report), "--out",
+                                         str(tmp_path / "mixed"), "--reader", "none"])
+    assert status == 0 and [Path(d["document"]).name for d in answer["documents"]] == [
+        "eins.pdf", "befund.pdf"]  # a PDF among them: typdoc binds none, each by itself
+    first_steps = [(s["tool"], s["used"]) for s in answer["documents"][0]["steps"]]
+    assert first_steps[0] == ("typdoc", True)  # the picture became a PDF of its own
+    assert answer["documents"][1]["steps"][0] == {"tool": "typdoc", "used": False}
+    status, answer, _ = _answer(capsys, ["run", str(first), str(second), "--each", "--out",
+                                         str(tmp_path / "pdfs"), "--reader", "none"])
+    assert status == 0 and [Path(d["document"]).name for d in answer["documents"]] == [
+        "eins.pdf", "zwei.pdf"]  # asked for: each picture a PDF of its own
+    assert all(d["pages"] == 1 for d in answer["documents"])
+    twin = tmp_path / "andere" / "eins.png"
+    twin.parent.mkdir()
+    twin.write_bytes(b"\x89PNG")
+    for argv, kind in (([str(first), str(twin), "--without", "typdoc"], "same-stem"),
+                       ([str(first), str(second), "--each", "--config", str(tmp_path / "x.json")],
+                        "usage"),
+                       ([str(first), "--each"], "usage")):
+        status, answer, _ = _answer(capsys, ["run", *argv, "--out", str(tmp_path / "no")])
+        assert status == 2 and answer["error"] == kind, argv
+    assert not (tmp_path / "no").exists()
+    status, answer, _ = _answer(capsys, ["edit", str(first), str(second), "--without", "typdoc"])
+    assert status == 2 and answer["error"] == "several-originals"  # the window: one document

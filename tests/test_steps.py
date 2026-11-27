@@ -23,8 +23,9 @@ def test_the_steps_and_their_order() -> None:
     assert [s.name for s, _a in steps.installed()] == ["typdoc", "optdoc", "ocrdoc", "tagdoc"]
     typdoc = steps.by_name("typdoc")
     assert typdoc is not None  # the one step that changes the type: no work for a PDF
-    assert typdoc.has_work(Path("foto.HEIC")) and not typdoc.has_work(Path("scan.pdf"))
-    assert all(s.has_work(Path("scan.pdf")) for s in steps.STEPS if s.name != "typdoc")
+    assert typdoc.has_work([Path("foto.HEIC")]) and not typdoc.has_work([Path("scan.pdf")])
+    assert typdoc.has_work([Path("1.jpg"), Path("2.jpg")])
+    assert all(s.has_work([Path("scan.pdf")]) for s in steps.STEPS if s.name != "typdoc")
     for step in steps.STEPS:
         assert set(step.does) == {"en", "de"}
 

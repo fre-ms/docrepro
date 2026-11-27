@@ -115,7 +115,7 @@ def test_steps_switched_off_and_on(app: QApplication, tmp_path: Path, report: Pa
         assert "Ramipril" in window.text.text.toPlainText()  # read from the original
         configs = window.configs()
         assert configs["optdoc"]["pages"][0]["by"] == "person"  # kept for later
-        assert configs["ocrdoc"]["input"]["sha256"] == chain.sha256
+        assert configs["ocrdoc"]["input"]["sha256"] == chain.named[0]["sha256"]
         window.step_boxes["ocrdoc"].setChecked(False)
         assert window.used == {"tagdoc"}
         assert [window.tabs.isTabEnabled(i) for i in range(5)] == [False] * 4 + [True]
@@ -220,6 +220,26 @@ def test_a_picture_in_the_window(app: QApplication, tmp_path: Path, report: Path
         assert window.used == {"optdoc"} and window._origin == photo
         assert window.step_states["typdoc"].text() == "○ aus"
         assert window.prepared_project.picture
+    finally:
+        window.outcome = "cancelled"
+        window.close()
+        window.release()
+
+
+def test_several_pictures_in_the_window(app: QApplication, tmp_path: Path, report: Path) -> None:
+    """Several pictures are one document only bound into one: in the window typdoc is on
+    and cannot be switched off, and optdoc works on the PDF of all of them."""
+    from tests.synthetic import photo_of
+
+    pictures = [photo_of(report, tmp_path / "a.jpg"), photo_of(report, tmp_path / "b.jpg")]
+    chain = Chain.open(pictures, settings={"reader": "none"})
+    window = ChainWindow(chain, tmp_path / "work", Words("de"), synchronous=True)
+    try:
+        assert window.several and "typdoc" in window.used
+        assert not window.step_boxes["typdoc"].isEnabled()
+        assert "2 Bilder: nur gebunden ein Dokument" in window.step_states["typdoc"].text()
+        assert window._origin.suffix == ".pdf" and len(window.prepared_project.pages) == 2
+        assert "(+1)" in window.windowTitle()
     finally:
         window.outcome = "cancelled"
         window.close()

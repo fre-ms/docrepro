@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import contextlib
 import shutil
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -44,7 +44,7 @@ from docrepro.errors import DocreproError
 from docrepro.steps import STEPS, Adapter, Step, installed, opened
 
 FORMAT = "docrepro-chain"
-FORMAT_VERSION = 2  # 2: every step says whether it was in use
+FORMAT_VERSION = 3  # 2: every step says whether it was in use; 3: the originals, a list
 SUFFIX = ".docrepro.json"
 EMBEDDED = "docrepro.json"  # the chain document inside the final PDF
 WORK = ".docrepro-work"  # the hidden folder inside the results for what the steps make
@@ -92,8 +92,49 @@ def _per_step(progress: StepProgress | None, step: str) -> Callable[[int, int], 
     return each
 
 
+def one_document(originals: Sequence[str | Path], without: Iterable[str] = ()) -> bool:
+    """True where the files given are one document: one file, or pictures that typdoc
+    binds into one PDF (it is installed, and not left out); else each is a document of its
+    own (:func:`run_each`)."""
+    if len(originals) <= 1:
+        return True
+    binder = next((step.name for step, _adapter in installed() if step.takes == "pictures"),
+                  None)
+    return (binder is not None and binder not in set(without)
+            and all(Path(o).suffix.lower() != ".pdf" for o in originals))
+
+
+def run_each(originals: Sequence[str | Path], out: str | Path,
+             settings: dict[str, Any] | None = None, without: Iterable[str] = (),
+             models: Path | None = None,
+             progress: Callable[[int, str, int, int], None] | None = None) -> dict[str, Any]:
+    """Take each file through the chain as a document of its own, one after another, into
+    the one folder ``out``, each under its own name; the steps in use and the settings are
+    the same for all (a picture goes on as a PDF of its own where typdoc is in use, and
+    stays a picture where it is not).  ``progress`` hears (document from 1, step, page,
+    of how many).  Returns ``{"documents": [the answer of each], "not_installed": […]}``.
+    Raises "same-stem" before anything is done where two files have the same name before
+    their ending (their results would overwrite each other), and what a chain raises; the
+    results of the files before stay."""
+    files = [Path(o) for o in originals]
+    stems = [f.stem.casefold() for f in files]
+    if len(set(stems)) != len(stems):
+        raise DocreproError("same-stem")
+    chains = [Chain.open(f, settings=settings, without=without) for f in files]
+    answers = []
+    for n, chain in enumerate(chains, 1):
+        chain.models = models
+        each = None if progress is None else (
+            lambda step, page, of, n=n: progress(n, step, page, of))
+        answer = chain.run(out, each)
+        missing = answer.pop("not_installed")
+        answers.append(answer)
+    return {"documents": answers, "not_installed": missing}
+
+
 class Chain:
-    """An original and how it goes through the steps: as the chain document given says,
+    """An original (or the originals of one document: pictures that typdoc binds into one
+    PDF, in their order) and how it goes through the steps: as the chain document given says,
     else fresh with the settings of the steps (``settings``, each step takes those it
     knows: ``photo``, ``clean_up``, ``colour_pages`` for optdoc, ``reader``, ``languages``,
     ``cells`` … for ocrdoc).  ``used`` names the steps in use for this document: those the
@@ -103,11 +144,12 @@ class Chain:
     switched off that keep one.  ``models`` is the folder of models the steps may use
     (None: none); it is no setting, and the chain document does not name it."""
 
-    def __init__(self, original: Path, sha256: str, size: int,
-                 configs: dict[str, dict[str, Any]], settings: dict[str, Any]) -> None:
-        self.original = original
-        self.sha256 = sha256
-        self.size = size
+    def __init__(self, originals: list[Path], configs: dict[str, dict[str, Any]],
+                 settings: dict[str, Any]) -> None:
+        self.originals = originals
+        self.original = originals[0]  # it names the results (its stem) and their type
+        self.named = [{"sha256": documents.digest(o), "bytes": o.stat().st_size,
+                       "suffix": o.suffix.lower()} for o in originals]
         self.configs = configs
         # the program the document is made with, as the steps that describe it name it
         self.settings = {"creator_tool": f"docrepro {__version__}", **settings}
@@ -118,34 +160,35 @@ class Chain:
         self.carried: dict[str, dict[str, Any]] = {}
 
     @classmethod
-    def open(cls, original: str | Path, chain: dict[str, Any] | None = None,
+    def open(cls, original: str | Path | Sequence[str | Path], chain: dict[str, Any] | None = None,
              settings: dict[str, Any] | None = None,
              without: Iterable[str] = ()) -> Chain:
-        """The chain on ``original``: as ``chain`` (a chain document) says, else fresh,
-        with every installed step in use but those named in ``without``.  Raises
-        "missing", "config-mismatch" when the chain document belongs to another original,
-        "step-missing" when it used a step that is not installed, "step-needs" when a step
-        in use needs one that is not, "no-steps" when none is in use, "bad-config" for a
-        document that makes no sense."""
-        original = Path(original)
-        if not original.is_file():
+        """The chain on ``original`` (a file, or the files of one document in their order):
+        as ``chain`` (a chain document) says, else fresh, with every installed step in use
+        but those named in ``without``.  Raises "missing", "config-mismatch" when the chain
+        document belongs to other originals (or another order), "step-missing" when it used
+        a step that is not installed, "step-needs" when a step in use needs one that is
+        not, "several-originals" when several files cannot be bound into one, "no-steps"
+        when none is in use, "bad-config" for a document that makes no sense."""
+        originals = ([Path(original)] if isinstance(original, str | Path)
+                     else [Path(o) for o in original])
+        if not originals or not all(o.is_file() for o in originals):
             raise DocreproError("missing")
-        sha256 = documents.digest(original)
         entries: dict[str, dict[str, Any]] = {}
+        made = cls(originals, {}, dict(settings or {}))
         if chain is not None:
-            named = chain.get("original")
-            if not isinstance(named, dict):
+            named = chain.get("originals")
+            if not isinstance(named, list) or not all(isinstance(n, dict) for n in named):
                 raise DocreproError("bad-config", reason="field")
-            if named.get("sha256") != sha256:
+            if [n.get("sha256") for n in named] != [n["sha256"] for n in made.named]:
                 raise DocreproError("config-mismatch")
             entries = _entries(chain)
-        configs = {name: entry["config"] for name, entry in entries.items()
-                   if entry.get("config") is not None}
-        made = cls(original, sha256, original.stat().st_size, configs, dict(settings or {}))
+        made.configs = {name: entry["config"] for name, entry in entries.items()
+                        if entry.get("config") is not None}
         known = {step.name for step, _adapter in made.steps}
-        if chain is None:  # every step that has work for this original, but those left out
+        if chain is None:  # every step that has work for these originals, but those left out
             made.used = {step.name for step, _adapter in made.steps
-                         if step.has_work(original)} - set(without)
+                         if step.has_work(originals)} - set(without)
         else:  # the document decides: a step it does not name was not in use
             made.used = {name for name, entry in entries.items() if entry["used"]}
             for name, entry in entries.items():
@@ -164,6 +207,11 @@ class Chain:
         file of one type: every step takes what it is handed."""
         if not self.used:
             raise DocreproError("no-steps")
+        if len(self.originals) > 1:  # one document only where typdoc binds them into one
+            binder = next((s.name for s, _a in self.steps if s.takes == "pictures"), None)
+            if binder is None or binder not in self.used \
+                    or any(o.suffix.lower() == ".pdf" for o in self.originals):
+                raise DocreproError("several-originals")
         for step, _adapter in self.steps:
             if step.name not in self.used:
                 continue
@@ -171,11 +219,12 @@ class Chain:
                 if needed not in self.used:
                     raise DocreproError("step-needs", step=step.name, needs=needed)
 
-    def opened(self, adapter: Adapter, source: Path, config: dict[str, Any] | None,
+    def opened(self, adapter: Adapter, source: Path | list[Path], config: dict[str, Any] | None,
                scratch: Path) -> Any:
-        """A step's project on ``source``, with the chain's settings and its folder of
-        models."""
-        return opened(adapter, source, config, self.settings, scratch, self.models)
+        """A step's project on ``source``, with the chain's settings, its folder of models
+        and its originals."""
+        return opened(adapter, source, config, self.settings, scratch, self.models,
+                      self.originals)
 
     # -- the chain document --------------------------------------------------------------------
     def document(self, configs: dict[str, dict[str, Any]]) -> dict[str, Any]:
@@ -198,8 +247,7 @@ class Chain:
             steps.append(entry)
         return {"format": FORMAT, "version": FORMAT_VERSION,
                 "made_with": f"docrepro {__version__}",
-                "original": {"sha256": self.sha256, "bytes": self.size,
-                             "suffix": self.original.suffix.lower()},
+                "originals": [dict(n) for n in self.named],
                 "steps": steps}
 
     def save(self, configs: dict[str, dict[str, Any]], path: Path) -> Path:
@@ -242,8 +290,8 @@ class Chain:
         fresh.  Returns the answer of the command line."""
         out = Path(out)
         stem = self.original.stem
-        if self.original.resolve() in ((out / f"{stem}.pdf").resolve(),
-                                       (out / self.original.name).resolve()):
+        results = {(out / f"{stem}.pdf").resolve(), (out / self.original.name).resolve()}
+        if any(o.resolve() in results for o in self.originals):
             raise DocreproError("same-as-source")
         self.check()
         start = dict(self.configs if configs is None else configs)
@@ -260,7 +308,8 @@ class Chain:
                     report.append({"tool": step.name, "used": False})
                     continue
                 folder = work / step.name
-                project = self.opened(adapter, source, start.get(step.name), folder)
+                given = self.originals if step.takes == "pictures" else source
+                project = self.opened(adapter, given, start.get(step.name), folder)
                 try:
                     paths = adapter.write(project, folder, stem, _per_step(progress, step.name))
                     made[step.name] = adapter.config(project)

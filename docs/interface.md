@@ -1,6 +1,6 @@
 # docrepro's command line as an interface
 
-**Interface 4**, since docrepro 0.7.0 (this description: docrepro 0.8.0). This is what a program may rely on
+**Interface 5**, since docrepro 0.9.0. This is what a program may rely on
 when it calls docrepro, a records app above all, which ships one program instead of one per step.
 
 Every answer carries `interface`; it goes up when something a caller relies on changes in a way that breaks
@@ -39,12 +39,20 @@ document's type. It binds a picture into a PDF as medRDS says and is in use for 
 (`--without typdoc`); for a PDF it has nothing to do. The answer's `steps`, `about` and the chain document
 name it like every step. attdoc, the signing step to come (order 50), is named in `about`.
 
+**From interface 4:** `run` and `edit` take **several files**. Pictures of one document go through the
+chain as one: typdoc binds them into one PDF (a page for each, a file of several pictures a page for each
+of them). Files that typdoc does not bind (typdoc left out, a PDF among them, or `--each`) go through
+`run` each as a document of its own, and the answer lists them (`documents`). The chain document is
+**version 3**: it names the originals as a list, `originals`, in their order (one for a single
+original), in place of `original`; version 2 is no longer read. New kinds of error: `several-originals`,
+`same-stem`. New setting: `--camera-date` (tagdoc 0.4.0).
+
 ## Calling
 
 ```
 docrepro about
-docrepro run  <original> --out <folder> [--config <chain>] [--without <step>]… [settings] [--progress]
-docrepro edit <original> --out <folder> [--config <chain>] [--without <step>]… [settings] [--language de|en]
+docrepro run  <original>… --out <folder> [--config <chain>] [--without <step>]… [settings] [--progress]
+docrepro edit <original>… --out <folder> [--config <chain>] [--without <step>]… [settings] [--language de|en]
 docrepro models list [--models <folder>]
 docrepro models fetch <name> --to <folder> [--progress]
 docrepro <step> …                      the step's own command line (typdoc, optdoc, ocrdoc, tagdoc; semdoc, attdoc once there)
@@ -65,7 +73,7 @@ to docrepro. docrepro never goes on the network while it works; the one command 
 ## `about`
 
 ```json
-{"interface": 4, "made_with": "docrepro 0.8.0", "version": "0.8.0", "window": true,
+{"interface": 5, "made_with": "docrepro 0.9.0", "version": "0.9.0", "window": true,
  "steps": [{"tool": "optdoc", "order": 10, "takes": "original", "gives": "pdf",
             "does": {"en": "…", "de": "…"}, "planned": false, "installed": true, "version": "0.10.1"},
            {"tool": "typdoc", "order": 5, "…": "…"},
@@ -118,13 +126,41 @@ into the picture where the picture's format has a place for one (`docs/family-de
 design).
 
 A step that cannot do without another says so (`step-needs`: semdoc, once there, needs ocrdoc's reading).
+
+**Several files.** Pictures of one document (`docrepro run seite-1.jpg seite-2.jpg …`) are bound by typdoc
+into one PDF, in the order given, as medRDS 9.5 says (each picture in it byte for byte; a TIFF of several
+pages a page for each), and every step after it works on that one document. The results are named after
+the first picture (`seite-1.pdf`), and the answer is that of one document, as above.
+
+Several files are one document only so bound. **Where typdoc does not bind them** (it is left out, a PDF
+is among them, or `--each` asks for it), `run` takes each file through the chain as a document of its own,
+one after another, into the one folder, each under its own name; the steps in use and the settings are the
+same for all. A picture then goes on as a PDF of its own where typdoc is in use (`--each`, or beside a PDF)
+and stays a picture where it is not. The answer lists the answer of each document, in the order of the
+files; with `--progress` every line also names the `document` (from 1):
+
+```json
+{"interface": 5, "made_with": "docrepro 0.9.0",
+ "documents": [{"document": "<folder>/seite-1.jpg", "config": "<folder>/seite-1.docrepro.json",
+                "pages": 1, "steps": [{"tool": "typdoc", "used": false}, "…"]},
+               {"document": "<folder>/brief.pdf", "…": "…"}],
+ "not_installed": ["semdoc", "attdoc"]}
+```
+
+Two files whose names are the same before their ending would overwrite each other's results: `same-stem`,
+before anything is done. Where one document fails, the error says so, and the results of those before it
+stay. A chain document is of one document: `--config` beside several files that are not one is a `usage`
+error, and so is `--each` beside one file. The window, too, works on one document: `edit` with several files
+that are not one answers `several-originals`.
 The PDF carries the configuration documents of the steps that ran, and the chain document says for every
 step whether it was in use. With `--config` the chain document decides which steps are in use; `--without`
 beside it is a `usage` error.
 
 **Settings** of the steps, each taken by the step that knows it: `--photo` or `--scan`,
 `--no-clean-up`, `--colour-pages jpeg|png` (optdoc); `--reader`, `--languages`, `--no-cells`, `--no-areas`
-(ocrdoc). With `--config` the chain document decides; a setting beside it is a `usage` error.
+(ocrdoc); `--camera-date never|missing|first` (tagdoc: whether the date a camera gives, when the photo was
+taken, is suggested as the clinical date; tagdoc reads it from the originals, since optdoc's prepared page
+carries no camera data). With `--config` the chain document decides; a setting beside it is a `usage` error.
 
 **Models.** `--models <folder>` (for `run` and `edit`) is the folder whose models the steps may use; every
 step that takes models gets it, and what does not lie there is done without. It is no setting: the chain
@@ -136,7 +172,7 @@ document does not name it, and it may stand beside `--config`.
 The answer:
 
 ```json
-{"interface": 4, "made_with": "docrepro 0.8.0",
+{"interface": 5, "made_with": "docrepro 0.9.0",
  "document": "<folder>/<stem>.pdf", "config": "<folder>/<stem>.docrepro.json",
  "reading": "<folder>/<stem>.reading.json", "markdown": "<folder>/<stem>.md",
  "pages": 2,
@@ -191,7 +227,7 @@ No step needs a model; a step lists one only after it did better, measured, than
 docrepro lists the models of every installed step, each with its step:
 
 ```json
-{"interface": 4, "made_with": "docrepro 0.8.0",
+{"interface": 5, "made_with": "docrepro 0.9.0",
  "models": [{"step": "optdoc", "name": "page-orientation", "file": "pp-lcnet-x1-0-doc-ori.onnx",
              "url": "https://huggingface.co/PaddlePaddle/PP-LCNet_x1_0_doc_ori_onnx/resolve/…/inference.onnx",
              "sha256": "af9a0a4f…", "bytes": 6788069, "licence": "Apache-2.0",
@@ -228,11 +264,12 @@ again without any model**.
 ocrdoc lists none yet: the layout model measured so far did worse than its rules on the invented letters of
 its bench (ocrdoc's `docs/interface.md`).
 
-## The chain document: `docrepro-chain`, version 2
+## The chain document: `docrepro-chain`, version 3
 
 ```json
-{"format": "docrepro-chain", "version": 2, "made_with": "docrepro 0.6.0",
- "original": {"sha256": "…", "bytes": 245678, "suffix": ".jpg"},
+{"format": "docrepro-chain", "version": 3, "made_with": "docrepro 0.9.0",
+ "originals": [{"sha256": "…", "bytes": 245678, "suffix": ".jpg"},
+               {"sha256": "…", "bytes": 231004, "suffix": ".jpg"}],
  "steps": [{"tool": "typdoc", "used": true, "made_with": "typdoc 0.2.0",
             "config": {"format": "typdoc-config", "…": "…"}},
            {"tool": "optdoc", "used": true, "made_with": "optdoc 0.10.1",
@@ -242,16 +279,16 @@ its bench (ocrdoc's `docs/interface.md`).
            {"tool": "tagdoc", "used": false, "config": {"format": "tagdoc-config", "…": "…"}}]}
 ```
 
-The original by its SHA-256, and for every step whether it was in use (`used`) and its configuration
+The originals by their SHA-256, in their order (one for a single original), and for every step whether it was in use (`used`) and its configuration
 document as the step wrote it; no paths, no times. A step in use has `made_with` and `config`. A step that
 is off may keep a `config`: what a person decided in it before it was switched off, kept for when it is
 switched on again (it takes no part in the result). **The original and the chain document give every file
 again, byte for byte**, on the same versions of the steps; `--config` takes the chain document or the PDF
-docrepro wrote. A chain document of another original is refused (`config-mismatch`), one that used a step
+docrepro wrote. A chain document of other originals, or of the same in another order, is refused (`config-mismatch`), one that used a step
 which is not installed too (`step-missing`): without it, the result cannot be made again. A step the
 document does not name is not in use, so that a step installed later changes nothing of what the document
 makes; in the window a person can switch it on. The entry of a step that is not installed and was not in
-use is carried along as it is. Version 1 (docrepro 0.1 and 0.2) is no longer read.
+use is carried along as it is. Versions 1 and 2 (docrepro 0.1 to 0.8) are no longer read.
 
 ## Failures
 
@@ -261,6 +298,8 @@ As every tool of docrepro: `error`, `details`, `message` in English and German. 
 |---|---|---|
 | `step-missing` | the chain document used a step that is not installed, or `docrepro <step>` for one | `step` |
 | `step-needs` | a step in use needs one that is switched off or not installed (semdoc, once there, needs ocrdoc's reading) | `step`, `needs` |
+| `several-originals` | the window, or a chain document, is given several files that are not one document (typdoc does not bind them) | |
+| `same-stem` | several files taken each by itself, two of them with the same name before their ending | |
 | `no-steps` | no step is in use: nothing to do | |
 
 and the common ones (`missing`, `bad-config`, `config-mismatch`, `same-as-source`, `unwritable`, `cancelled`,

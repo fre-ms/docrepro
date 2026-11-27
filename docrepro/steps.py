@@ -3,7 +3,7 @@
 =========  =====  ==========================================  ===========================
 tool       order  its one step                                takes
 =========  =====  ==========================================  ===========================
-typdoc     5      change the type: bind pictures into a PDF   the original, a picture
+typdoc     5      change the type: bind pictures into a PDF   the originals, pictures
 optdoc     10     make the page faithful                      typdoc's PDF, or the original
 ocrdoc     20     recognise: areas, text, tables, barcodes    what optdoc gave, PDF or picture
 semdoc     30     understand: medical terms, identifying      ocrdoc's reading
@@ -80,10 +80,11 @@ class Step:
     planned: bool = False
     needs: tuple[str, ...] = ()
 
-    def has_work(self, original: Path) -> bool:
-        """False where the step has nothing to do for an original of that type: the step
+    def has_work(self, originals: list[Path]) -> bool:
+        """False where the step has nothing to do for originals of that type: the step
         that binds pictures, for a PDF."""
-        return not (self.takes == "pictures" and original.suffix.lower() == ".pdf")
+        return not (self.takes == "pictures"
+                    and all(o.suffix.lower() == ".pdf" for o in originals))
 
 
 STEPS: tuple[Step, ...] = (
@@ -167,14 +168,20 @@ def catalogue(made: Adapter) -> tuple[Model, ...]:
     return tuple(getattr(made, "catalogue", ()))
 
 
-def opened(made: Adapter, source: Path, config: dict[str, Any] | None,
-           settings: dict[str, Any], scratch: Path, models: Path | None) -> Any:
-    """A step's project on ``source`` (:meth:`Adapter.open`), with the folder of models it
-    may use handed over where the step takes one."""
-    project = made.open(source, config, settings, scratch)
+def opened(made: Adapter, source: Path | list[Path], config: dict[str, Any] | None,
+           settings: dict[str, Any], scratch: Path, models: Path | None,
+           originals: list[Path] | None = None) -> Any:
+    """A step's project on ``source`` (:meth:`Adapter.open`; for the step that binds
+    pictures, the originals), with the folder of models it may use and the originals the
+    chain began with handed over where the step takes them (``use_models``,
+    ``use_originals``: tagdoc reads a camera's data from them)."""
+    project = made.open(source, config, settings, scratch)  # type: ignore[arg-type]
     use = getattr(made, "use_models", None)
     if use is not None:
         use(project, models)
+    take = getattr(made, "use_originals", None)
+    if take is not None and originals:
+        take(project, list(originals))
     return project
 
 

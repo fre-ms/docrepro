@@ -47,7 +47,8 @@ def test_the_whole_way_again_from_the_chain_document(tmp_path: Path, report: Pat
     assert sorted(p.name for p in (tmp_path / "a").iterdir()) == [
         "scan.docrepro.json", "scan.md", "scan.pdf", "scan.reading.json"]
     chain = json.loads(Path(first["config"]).read_text(encoding="utf-8"))
-    assert chain["format"] == "docrepro-chain" and chain["version"] == 2
+    assert chain["format"] == "docrepro-chain" and chain["version"] == 3
+    assert [o["suffix"] for o in chain["originals"]] == [".pdf"]
     assert in_use(chain) == in_use(first)
     assert by_tool(chain)["typdoc"] == {"tool": "typdoc", "used": False}
     assert by_tool(chain)["optdoc"]["config"]["pages"][0]["plan"]["straighten"] is True
@@ -125,7 +126,7 @@ def test_refused_chain_documents(tmp_path: Path, report: Path) -> None:
     with pytest.raises(DocreproError) as caught:
         Chain.open(report, chain=semdoc)
     assert (caught.value.kind, caught.value.details) == ("step-missing", {"step": "semdoc"})
-    for broken in ({**document, "steps": "alle"}, {**document, "original": None},
+    for broken in ({**document, "steps": "alle"}, {**document, "originals": None},
                    {**document, "steps": [{"tool": "optdoc"}]},
                    {**document, "steps": [{"tool": "optdoc", "used": True}]},
                    {**document, "steps": [{"tool": "optdoc", "used": "ja", "config": {}}]}):
@@ -136,7 +137,7 @@ def test_refused_chain_documents(tmp_path: Path, report: Path) -> None:
         Chain.open(report).run(report.parent)
     assert caught.value.kind == "same-as-source"
     path = tmp_path / "x.docrepro.json"
-    for version in (9, 1):  # one to come, and the one before: neither is read
+    for version in (9, 2):  # one to come, and the one before: neither is read
         path.write_text(json.dumps({**document, "version": version}), encoding="utf-8")
         with pytest.raises(DocreproError) as caught:
             load_chain(path)
@@ -327,7 +328,7 @@ def test_a_picture_is_read_as_a_picture(tmp_path: Path, report: Path) -> None:
     alone = Chain.open(photo, without=("typdoc", "optdoc", "tagdoc"),
                        settings={"reader": "none"}).run(tmp_path / "alone")
     assert Path(alone["document"]).read_bytes() == photo.read_bytes()
-    assert load_chain(alone["config"])["original"]["suffix"] == ".jpg"
+    assert load_chain(alone["config"])["originals"][0]["suffix"] == ".jpg"
 
 
 def test_a_step_switched_off_keeps_what_it_held(tmp_path: Path, report: Path) -> None:
@@ -356,3 +357,68 @@ def test_a_step_switched_off_keeps_what_it_held(tmp_path: Path, report: Path) ->
                                  {"tool": "tagdoc", "used": True, "config": held}]}
     third = Chain.open(report, chain=back).run(tmp_path / "c")
     assert Path(third["document"]).read_bytes() == Path(first["document"]).read_bytes()
+
+
+
+def test_several_pictures_are_one_document(tmp_path: Path, report: Path) -> None:
+    """Three pictures of one document go through every step as one: typdoc binds them into
+    one PDF in their order (a page for each), and the steps after it take that.  The chain
+    document names every original in its order, and makes the same files again; in
+    another order the pictures are another document.  Without typdoc, or with a PDF among
+    them, several files are no one document: refused before anything is done."""
+    from tests.synthetic import photo_of
+
+    first = photo_of(report, tmp_path / "seite-1.jpg")
+    second = photo_of(report, tmp_path / "seite-2.jpg", rotation=-0.8)
+    third = tmp_path / "seite-3.png"
+    from PIL import Image
+
+    with Image.open(first) as image:
+        image.save(third)
+    pictures = [first, second, third]
+    made = Chain.open(pictures, settings={"reader": "none"}).run(tmp_path / "out")
+    assert in_use(made) == [("typdoc", True), ("optdoc", True), ("ocrdoc", True),
+                            ("tagdoc", True)]
+    assert Path(made["document"]).name == "seite-1.pdf" and made["pages"] == 3
+    chain = load_chain(made["config"])
+    assert [o["suffix"] for o in chain["originals"]] == [".jpg", ".jpg", ".png"]
+    bound = by_tool(chain)["typdoc"]["config"]["input"]["pictures"]
+    assert [p["sha256"] for p in bound] == [o["sha256"] for o in chain["originals"]]
+    again = Chain.open(pictures, chain=chain).run(tmp_path / "again")
+    assert _files(again) == _files(made)
+    with pytest.raises(DocreproError) as caught:
+        Chain.open([second, first, third], chain=chain)
+    assert caught.value.kind == "config-mismatch"
+    for refused in (dict(original=pictures, without=("typdoc",)),
+                    dict(original=[first, report])):
+        with pytest.raises(DocreproError) as caught:
+            Chain.open(**refused)
+        assert caught.value.kind == "several-originals", refused
+    with pytest.raises(DocreproError) as caught:
+        Chain.open([first, tmp_path / "fehlt.jpg"])
+    assert caught.value.kind == "missing"
+
+
+def test_the_camera_date_through_the_chain(tmp_path: Path, report: Path) -> None:
+    """tagdoc reads when a photo was taken from the original the chain began with (optdoc's
+    prepared page carries no camera data), and suggests it as the clinical date where the
+    setting says so; by default it does not."""
+    from PIL import Image
+
+    from tests.synthetic import photo_of
+
+    plain = photo_of(report, tmp_path / "ohne.jpg")
+    photo = tmp_path / "foto.jpg"
+    said = Image.Exif()
+    said.get_ifd(0x8769)[0x9003] = "2026:03:14 08:15:00"
+    said.get_ifd(0x8769)[0x9011] = "+01:00"
+    with Image.open(plain) as image:
+        image.save(photo, quality=90, exif=said)
+    dates = {}
+    for choice in (None, "first"):
+        settings = {"reader": "none"} | ({"camera_date": choice} if choice else {})
+        made = Chain.open(photo, settings=settings).run(tmp_path / str(choice))
+        held = by_tool(load_chain(made["config"]))["tagdoc"]["config"]
+        dates[choice] = held["fields"]["date"]["value"]
+        assert held["options"]["camera_date"] == (choice or "never")
+    assert dates["first"] == "2026-03-14T08:15:00+01:00" and dates[None] != dates["first"]

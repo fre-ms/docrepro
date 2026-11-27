@@ -46,6 +46,8 @@ and then tries the program out the way an application uses it:
 - `run --without typdoc`: the photo stays a JPEG through every step, prepared, read (its reading, the
   boxes in the picture's pixels, and the Markdown beside it) and described (the description in the
   picture itself); and the same picture again from its chain document;
+- `run` with two photos of one document: bound into one PDF of two pages, the chain document naming
+  both originals; and without typdoc, each a document of its own;
 - `models list`: the models the steps can use, each with its step;
 - on macOS the whole way and the window once more with the network closed by the system
   (`sandbox-exec`), and there `models fetch`, which must answer `model-unreachable` and keep

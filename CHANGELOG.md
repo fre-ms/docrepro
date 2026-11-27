@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.9.0 (2026-11-27)
+
+Several pictures of one document, and the camera's date as a choice. Interface 5;
+`docrepro-chain` version 3.
+
+- **Several pictures go through the chain as one document**: `run` and `edit` take several
+  files, in their order; typdoc (0.3.0) binds them into one PDF, a page for each picture (a TIFF of
+  several pages a page for each of them), and every step after it works on that one document. The
+  results are named after the first picture. In the window typdoc stays on for several pictures.
+- **Files that typdoc does not bind are each a document of its own** (the user's decision): with
+  typdoc left out, a PDF among them, or `--each`, `run` takes each through the chain by itself into
+  the one folder, and the answer lists them (`documents`; progress names the `document`). Two files
+  with the same name before their ending are refused (`same-stem`). The window and a chain
+  document work on one document (`several-originals`).
+- **The chain document is version 3**: `originals`, a list in their order, in place of
+  `original`. A chain document of the same pictures in another order is another document
+  (`config-mismatch`). Version 2 is no longer read.
+- **`--camera-date never|missing|first`** (tagdoc 0.4.0): whether the date a camera gives is
+  suggested as the clinical date. tagdoc reads it from the originals the chain began with, since
+  optdoc's prepared page carries no camera data.
+- The standalone program is tried out with two photos bound into one document.
+
 ## 0.8.0 (2026-11-27)
 
 A picture goes through every step as a picture, with tagdoc 0.3.0. Interface 4 and

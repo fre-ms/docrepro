@@ -11,8 +11,10 @@ hand, or to be made anew because a step before it changed.  A step that needs an
 switched off is kept, and back when the step is switched on again.
 
 typdoc, which binds a picture into a PDF, has no tab: it has nothing to decide.  For a PDF
-it has nothing to do.  For a picture it is on unless the person switches it off: then the
-picture stays a picture through every step.  Switching typdoc hands optdoc another file
+it has nothing to do.  For several pictures (the pages of one document) it is on and stays
+on: they are one document only bound into one.  For a picture it is on unless the person
+switches it off: then the picture stays a picture through every step.  Switching typdoc
+hands optdoc another file
 (the picture, or the PDF of it) that shows the very same pages, so optdoc takes along
 what a person planned (``same_document``), and ocrdoc, which finds the same frames in
 optdoc's document, keeps what a person decided in it.  Where optdoc is off, ocrdoc has no
@@ -105,8 +107,10 @@ class ChainWindow(QMainWindow):
         if not self.photo:
             self.used.discard("typdoc")
         self.bound_project: Any = None
+        # several pictures are one document only bound into one: typdoc stays on for them
+        self.several = len(chain.originals) > 1
         if self.typdoc is not None and self.photo:
-            self.bound_project = chain.opened(self.typdoc, chain.original,
+            self.bound_project = chain.opened(self.typdoc, chain.originals,
                                               chain.configs.get("typdoc"), work / "typdoc")
         self._origin = self._bound()  # what optdoc is handed: typdoc's PDF, or the original
         self.prepared_project = chain.opened(self.optdoc, self._origin,
@@ -122,7 +126,8 @@ class ChainWindow(QMainWindow):
         self.later_projects: dict[str, Any] = {step.name: None for step, _m in self.after_ocrdoc}
         self.later_panels: dict[str, Any] = {}
         self.later_keys: dict[str, bytes] = {}
-        self.setWindowTitle(self.w("title", tool="docrepro", name=chain.original.name))
+        named = chain.original.name + (f" (+{len(chain.originals) - 1})" if self.several else "")
+        self.setWindowTitle(self.w("title", tool="docrepro", name=named))
         self.resize(1400, 840)
         self.cleanup = CleanupPanel(self.prepared_project, words)
         self.cleanup.changed.connect(lambda n: self._worked_in("optdoc", n))
@@ -262,10 +267,14 @@ class ChainWindow(QMainWindow):
             switch.blockSignals(True)
             switch.setChecked(name in self.used)
             switch.blockSignals(False)
-            switch.setEnabled(state not in ("missing", "nothing") and unmet is None)
+            bound = name == "typdoc" and self.several  # it makes one document of them
+            switch.setEnabled(state not in ("missing", "nothing") and unmet is None
+                              and not bound)
             sign = OFF if state in ("missing", "nothing", "off") else IN_USE
             words = self.w(f"chain_{state}")
-            if unmet is not None and state != "missing":
+            if bound:
+                words = f"{words} ({self.w('chain_several', count=len(self.chain.originals))})"
+            elif unmet is not None and state != "missing":
                 words = f"{words} ({self.w('chain_needs', needs=unmet)})"
             self.step_states[name].setText(f"{sign} {words}")
         for index, name in enumerate(self._tab_steps):

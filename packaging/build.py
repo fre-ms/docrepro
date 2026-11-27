@@ -196,6 +196,22 @@ def check(program: Path, models: Path | None = None) -> dict[str, object]:
         assert not _left(work, empty), _left(work, empty)
         checks["window"] = ("opened without a screen, every tab shown, applied, the same PDF, "
                             "nothing left behind")
+        second = photo_of(table_report(work / "in" / "befund-2.pdf"), work / "in" / "foto-2.jpg")
+        status, several, _, timings["run, two pictures"] = _run(
+            [str(program), "run", str(photo), str(second), "--out", str(work / "several")], env)
+        assert status == 0 and several["pages"] == 2 and Path(several["document"]).name == \
+            "foto.pdf", several
+        chain = json.loads(Path(several["config"]).read_text(encoding="utf-8"))
+        assert [o["suffix"] for o in chain["originals"]] == [".jpg", ".jpg"], chain["originals"]
+        assert not _left(work, empty), _left(work, empty)
+        status, each, _, _ = _run(
+            [str(program), "run", str(photo), str(second), "--out", str(work / "each"),
+             "--without", "typdoc", "--without", "ocrdoc", "--without", "tagdoc"], env)
+        assert status == 0 and [Path(d["document"]).name for d in each["documents"]] == [
+            "foto.jpg", "foto-2.jpg"], each
+        assert not _left(work, empty), _left(work, empty)
+        checks["several pictures"] = ("two photos of one document bound into one PDF of two "
+                                      "pages; without typdoc each a document of its own")
         status, zero, _, timings["typdoc run"] = _run(
             [str(program), "typdoc", "run", str(photo), "--out", str(work / "s0")], env)
         assert status == 0 and zero["pages"] == 1 and zero["bound"][0]["attached"] is False, zero

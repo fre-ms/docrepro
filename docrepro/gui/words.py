@@ -33,6 +33,8 @@ WORDS: dict[str, tuple[str, str]] = {  # key: (English, German)
                       "Seiten nicht passen: es beginnt neu, und was darin entschieden war, ist "
                       "verworfen."),
     "chain_needs": ("needs {needs}", "braucht {needs}"),
+    "chain_several": ("{count} pictures: one document only bound into one",
+                      "{count} Bilder: nur gebunden ein Dokument"),
     "chain_off_tip": ("{step} is switched off (see the steps on the left).",
                       "{step} ist ausgeschaltet (siehe die Schritte links)."),
     "chain_none": ("No step is switched on: there is nothing to do.",

@@ -73,6 +73,10 @@ docrepro run scan.pdf --out results/ --models models/
 docrepro run scan.pdf --out results/ --without optdoc      # read the scan as it came
 docrepro run photo.heic --out results/ --without ocrdoc --without tagdoc   # prepare only
 docrepro run photo.heic --out results/ --without typdoc   # it stays a HEIC: prepared, read, described
+docrepro run seite-1.jpg seite-2.jpg --out results/        # two photos, one document: one PDF
+docrepro run seite-1.jpg seite-2.jpg --out results/ --each # each photo a PDF of its own
+docrepro run foto.heic brief.pdf --out results/            # not one document: each by itself
+docrepro run hautbefund.jpg --out results/ --camera-date first   # the photo's date is the clinical date
 ```
 
 `run` writes the last step's files under the original's name (`<name>.pdf` with ocrdoc's text layer and
@@ -128,7 +132,6 @@ faster-starting folder with `--onedir`. See [docs/sidecar.md](docs/sidecar.md).
   verified: the steps before it are made again byte for byte and compared with what was signed.
 - What a person decided in ocrdoc goes when typdoc is switched in the window while optdoc is off (ocrdoc
   then has no frames to go by); the page of a picture is the same either way, so it could go over.
-- Several pictures of one document through the whole chain (typdoc binds several on its own already).
 
 ## Licence
 
