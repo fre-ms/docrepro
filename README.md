@@ -11,18 +11,23 @@ It joins a family of tools, one tool for one step, each usable on its own:
 
 | order | tool | its step | status |
 |---|---|---|---|
-| 5 | [typdoc](https://github.com/fre-ms/typdoc) | changes the type, and nothing else: binds pictures into one PDF as medRDS says, each in it byte for byte | 0.2 |
-| 10 | [optdoc](https://github.com/fre-ms/optdoc) | makes the page faithful: upright, unwarped in its true proportions, evenly lit, in its colours; gives back the type it got | 0.10 |
-| 20 | [ocrdoc](https://github.com/fre-ms/ocrdoc) | recognises areas, text, tables and barcodes, and lays the text over the page | 0.3 |
-| 30 | semdoc | understands the text: medical terms and identifying information (through lexterm and lexident) | planned |
-| 40 | [tagdoc](https://github.com/fre-ms/tagdoc) | describes the document: title, kind, date, authors, the people it names with copies of their cards, written as medRDS says (XMP and the information dictionary, or a sidecar) | 0.2 |
-| 50 | attdoc | signs the document: a time stamp, a person's signature, resting on TimeAttest | planned |
+| 5 | [typdoc](https://github.com/fre-ms/typdoc) | changes the type, and nothing else: binds pictures into one PDF as medRDS says, each in it byte for byte | 0.3 |
+| 10 | [optdoc](https://github.com/fre-ms/optdoc) | makes the page faithful: upright, unwarped in its true proportions, evenly lit, in its colours; gives back the type it got | 0.11 |
+| 20 | [ocrdoc](https://github.com/fre-ms/ocrdoc) | recognises areas, text, tables and barcodes; lays the text over the page of a PDF, beside a picture | 0.4 |
+| 40 | [tagdoc](https://github.com/fre-ms/tagdoc) | describes the document: title, kind, date, authors, the people it names with copies of their cards, written as medRDS says (into the PDF or the picture, or a sidecar) | 0.4 |
+
+**What docrepro is for, and what not.** docrepro brings a photographed or scanned document as near to
+the original as it can: its pages, its text, what it says of itself. It goes no further. Understanding
+what the text says (medical terms, identifying information) and signing the document are other tasks,
+for other programs, which take what docrepro gives: ocrdoc's reading (`<name>.reading.json`) and the
+finished document, which TimeAttest can time-stamp and sign. A signature
+could not be made again from the original anyway, as every step of docrepro is.
 
 What they share (configuration documents, the command line's manners, no network, the window's building
 blocks) is [doccor](https://github.com/fre-ms/doccor)'s. Why the work is divided so, and the contract every
 step keeps: `docs/family-design.md` in optdoc.
 
-**Status: pre-alpha (0.6.0).**
+**Status: pre-alpha (0.10.0).**
 
 ## The chain and its document
 
@@ -41,12 +46,10 @@ else. With it:
   turned or unwarped otherwise loses them, and the answer names it;
 - **a step switched off keeps what a person decided in it**, for when it is switched on again.
 
-## Steps to come, and how a step joins
+## How a step joins
 
-semdoc has its place in the chain from the start (order 30, between ocrdoc and tagdoc; it takes the reading
-and gives annotations, format `semdoc-annotations`; `docrepro about` lists it as planned). A step is put into
-the chain by installing it: docrepro brings the adapters of optdoc and ocrdoc, and any other step brings its
-own through the entry point `docrepro.steps`, as tagdoc does:
+A step is put into the chain by installing it: docrepro brings the adapters of optdoc and ocrdoc, and
+typdoc and tagdoc bring their own through the entry point `docrepro.steps`:
 
 ```toml
 [project.entry-points."docrepro.steps"]
@@ -125,11 +128,6 @@ faster-starting folder with `--onedir`. See [docs/sidecar.md](docs/sidecar.md).
 
 ## Planned
 
-- semdoc, once lexcor has its annotation document and its window for a person's review.
-- **attdoc**, a signing step as the last (order 50): a time stamp and a person's signature (the qualified
-  one with the electronic health professional card, or an advanced one with a software certificate),
-  resting on TimeAttest. It will be off unless a person asks for it, and cannot be made again, only
-  verified: the steps before it are made again byte for byte and compared with what was signed.
 - What a person decided in ocrdoc goes when typdoc is switched in the window while optdoc is off (ocrdoc
   then has no frames to go by); the page of a picture is the same either way, so it could go over.
 

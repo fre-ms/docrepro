@@ -18,9 +18,7 @@ WORDS: dict[str, tuple[str, str]] = {  # key: (English, German)
     "chain_typdoc": ("bind into a PDF", "zum PDF binden"),
     "chain_optdoc": ("prepare", "aufbereiten"),
     "chain_ocrdoc": ("recognise", "erkennen"),
-    "chain_semdoc": ("understand", "verstehen"),
     "chain_tagdoc": ("describe", "beschreiben"),
-    "chain_attdoc": ("sign", "signieren"),
     "chain_nothing": ("nothing to do: a PDF already", "nichts zu tun: schon ein PDF"),
     "chain_off": ("off", "aus"),
     "chain_auto": ("in use, as suggested", "in Gebrauch, wie vorgeschlagen"),
@@ -32,7 +30,6 @@ WORDS: dict[str, tuple[str, str]] = {  # key: (English, German)
                       "optdoc bekommt jetzt eine andere Datei (typdoc wurde umgeschaltet), deren "
                       "Seiten nicht passen: es beginnt neu, und was darin entschieden war, ist "
                       "verworfen."),
-    "chain_needs": ("needs {needs}", "braucht {needs}"),
     "chain_several": ("{count} pictures: one document only bound into one",
                       "{count} Bilder: nur gebunden ein Dokument"),
     "chain_off_tip": ("{step} is switched off (see the steps on the left).",

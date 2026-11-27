@@ -40,18 +40,15 @@ def test_about(capsys: pytest.CaptureFixture[str]) -> None:
     assert status == 0 and answer["interface"] == INTERFACE
     assert answer["made_with"] == f"docrepro {__version__}"
     steps = {s["tool"]: s for s in answer["steps"]}
-    assert list(steps) == ["typdoc", "optdoc", "ocrdoc", "semdoc", "tagdoc", "attdoc"]
-    assert steps["typdoc"]["installed"] and steps["typdoc"]["order"] == 5
-    assert steps["attdoc"]["planned"] and not steps["attdoc"]["installed"]
-    assert steps["optdoc"]["installed"] and steps["ocrdoc"]["installed"]
-    assert steps["tagdoc"]["installed"] and not steps["tagdoc"]["planned"]
-    assert steps["semdoc"]["planned"] and steps["semdoc"]["version"] is None
+    assert list(steps) == ["typdoc", "optdoc", "ocrdoc", "tagdoc"]
+    assert all(s["installed"] and s["version"] for s in steps.values())
+    assert steps["typdoc"]["order"] == 5 and "planned" not in steps["tagdoc"]
     assert set(steps["tagdoc"]["does"]) == {"en", "de"}
 
 
 def test_every_steps_own_command_line(capsys: pytest.CaptureFixture[str]) -> None:
-    """``docrepro optdoc …`` is optdoc's command line, ``docrepro ocrdoc …`` ocrdoc's; a
-    step that is not installed answers "step-missing"."""
+    """``docrepro optdoc …`` is optdoc's command line, ``docrepro ocrdoc …`` ocrdoc's; what is
+    no step of docrepro is no command of it."""
     status, answer, _ = _answer(capsys, ["optdoc", "about"])
     assert status == 0 and answer["made_with"].startswith("optdoc ")
     status, answer, _ = _answer(capsys, ["ocrdoc", "about"])
@@ -60,11 +57,9 @@ def test_every_steps_own_command_line(capsys: pytest.CaptureFixture[str]) -> Non
     assert status == 0 and answer["made_with"].startswith("tagdoc ")
     status, answer, _ = _answer(capsys, ["typdoc", "about"])
     assert status == 0 and answer["made_with"].startswith("typdoc ")
-    status, answer, _ = _answer(capsys, ["attdoc", "run", "x.pdf"])
-    assert status == 2 and answer["error"] == "step-missing"
-    status, answer, _ = _answer(capsys, ["semdoc", "run", "x.pdf"])
-    assert status == 2 and answer["error"] == "step-missing"
-    assert answer["details"] == {"step": "semdoc"} and "semdoc" in answer["message"]["de"]
+    for other in ("semdoc", "attdoc"):
+        status, answer, _ = _answer(capsys, [other, "run", "x.pdf"])
+        assert status == 2 and answer["error"] == "usage", other
 
 
 def test_failures_without_paths(tmp_path: Path, report: Path,
@@ -151,7 +146,7 @@ def test_several_pictures_on_the_command_line(tmp_path: Path, report: Path,
     second = photo_of(report, tmp_path / "zwei.jpg", rotation=-1.0)
     status, answer, _ = _answer(capsys, ["run", str(first), str(second), "--out",
                                          str(tmp_path / "out"), "--reader", "none"])
-    assert status == 0 and answer["pages"] == 2 and answer["interface"] == INTERFACE == 5
+    assert status == 0 and answer["pages"] == 2 and answer["interface"] == INTERFACE == 6
     assert Path(answer["document"]).name == "eins.pdf"
     done = _run(["run", str(first), str(second), "--out", str(tmp_path / "each"), "--without",
                  "typdoc", "--without", "ocrdoc", "--without", "tagdoc", "--progress"])

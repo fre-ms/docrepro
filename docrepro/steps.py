@@ -6,33 +6,33 @@ tool       order  its one step                                takes
 typdoc     5      change the type: bind pictures into a PDF   the originals, pictures
 optdoc     10     make the page faithful                      typdoc's PDF, or the original
 ocrdoc     20     recognise: areas, text, tables, barcodes    what optdoc gave, PDF or picture
-semdoc     30     understand: medical terms, identifying      ocrdoc's reading
-                  information (lexterm, lexident); planned
-tagdoc     40     describe: title, kind, date, authors (the   what ocrdoc gave (and, once
-                  metadata of medRDS)                         there, semdoc's annotations)
-attdoc     50     sign: a time stamp, a person's signature    the document as the steps
-                  (resting on TimeAttest); planned            before left it
+tagdoc     40     describe: title, kind, date, authors (the   what ocrdoc gave
+                  metadata of medRDS)
 =========  =====  ==========================================  ===========================
+
+docrepro brings a photographed or scanned document as near to the original as it can, and
+no further (the user, 27 November 2026): understanding what the text says (medical terms,
+identifying information) and signing the document are other tasks, for other programs.
+They take what docrepro gives: ocrdoc's reading, and the finished document (TimeAttest
+signs it).
 
 Every step keeps the same contract (``docs/family-design.md`` in optdoc): it has a
 configuration document of its own (``<stem>.<tool>.json``), from which it makes its
 result again byte for byte, and which the PDF it writes carries.  docrepro reaches each
-step through an :class:`Adapter`.  optdoc's and ocrdoc's are here; any other step brings
-its own through the entry-point group ``docrepro.steps``, named after the step (typdoc
-and tagdoc do; semdoc and attdoc are to)::
+step through an :class:`Adapter`.  optdoc's and ocrdoc's are here; typdoc and tagdoc bring
+their own through the entry-point group ``docrepro.steps``, named after the step::
 
     [project.entry-points."docrepro.steps"]
-    semdoc = "semdoc.docrepro:ADAPTER"
+    tagdoc = "tagdoc.docrepro:TagdocAdapter"
 
-so that installing it is all it takes to put it into the chain and the window.  A step
+so that installing a step is all it takes to put it into the chain and the window.  A step
 that is not installed is left out; a chain document that used one is refused
 ("step-missing"), since without it the result cannot be made again.
 
 **Every step is optional.**  A document goes through the steps that are in use for it and
 past the others: a step that is switched off hands on what it got, untouched.  OCR without
-preparation, preparation without OCR, a description alone: each is a chain.  What a step
-cannot do without another it says itself (``needs``: semdoc needs ocrdoc's reading), and a
-step that gets what it cannot take says so with its own error.
+preparation, preparation without OCR, a description alone: each is a chain.  A step
+that gets what it cannot take says so with its own error.
 
 **No step forces a file type.**  Only typdoc changes a document's type: it binds pictures
 into a PDF as medRDS says, and has nothing to do for an original that is a PDF (it is in
@@ -68,17 +68,14 @@ Progress = Callable[[int, int], None]  # page (from 1) about to be done, and how
 
 @dataclass(frozen=True)
 class Step:
-    """One step of the chain: its tool, its place, what it takes and gives, what it does
-    (in English and German), whether it is still to come, and the steps it cannot do
-    without (``needs``: they must be in use where it is)."""
+    """One step of the chain: its tool, its place, what it takes and gives, and what it
+    does (in English and German)."""
 
     name: str
     order: int
     takes: str
     gives: str
     does: dict[str, str]
-    planned: bool = False
-    needs: tuple[str, ...] = ()
 
     def has_work(self, originals: list[Path]) -> bool:
         """False where the step has nothing to do for originals of that type: the step
@@ -99,17 +96,9 @@ STEPS: tuple[Step, ...] = (
                 "PDF, beside a picture",
           "de": "erkennt Bereiche, Text, Tabellen und Barcodes; legt den Text über die Seite "
                 "eines PDFs, neben ein Bild"}),
-    Step("semdoc", 30, "reading", "annotations",
-         {"en": "understands the text: medical terms and identifying information",
-          "de": "versteht den Text: medizinische Begriffe und identifizierende Angaben"},
-         planned=True, needs=("ocrdoc",)),
     Step("tagdoc", 40, "document", "the document described (medRDS 7), or a sidecar beside it",
          {"en": "describes the document: title, kind, date, authors, the people it names",
           "de": "beschreibt das Dokument: Titel, Art, Datum, Autoren, die Personen darin"}),
-    Step("attdoc", 50, "document", "the document signed, or its signature beside it",
-         {"en": "signs the document: a time stamp, a person's signature",
-          "de": "signiert das Dokument: ein Zeitstempel, die Signatur einer Person"},
-         planned=True),
 )
 
 

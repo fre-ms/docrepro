@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.10.0 (2026-11-27)
+
+docrepro brings a document as near to its original as it can, and goes no further (the user, 27
+November 2026). Interface 6; `docrepro-chain` version 3 stays.
+
+### Removed
+
+- **semdoc and attdoc are no steps of docrepro.** Understanding what the text says (medical terms,
+  identifying information) goes beyond reproducing the document; signing it is TimeAttest's, and a
+  signature could not be made again from the original, as every step of docrepro is. Both take what
+  docrepro gives: ocrdoc's reading, and the finished document. `about` no longer lists them,
+  `not_installed` no longer names them, `docrepro semdoc …` and `docrepro attdoc …` are no commands.
+- With them went what only semdoc needed: a step's `planned` in `about`, the steps one needs
+  (`needs`), and the kind of error `step-needs`.
+
 ## 0.9.0 (2026-11-27)
 
 Several pictures of one document, and the camera's date as a choice. Interface 5;

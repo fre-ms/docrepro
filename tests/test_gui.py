@@ -43,11 +43,8 @@ def test_the_steps_joined_in_one_window(app: QApplication, tmp_path: Path, repor
             "typdoc": "○ nichts zu tun: schon ein PDF",
             "optdoc": "● in Gebrauch, wie vorgeschlagen",
             "ocrdoc": "● in Gebrauch, wie vorgeschlagen",
-            "semdoc": "○ nicht installiert",
-            "tagdoc": "● in Gebrauch, wie vorgeschlagen",
-            "attdoc": "○ nicht installiert"}
-        assert not any(window.step_boxes[name].isEnabled()
-                       for name in ("typdoc", "semdoc", "attdoc"))
+            "tagdoc": "● in Gebrauch, wie vorgeschlagen"}
+        assert not window.step_boxes["typdoc"].isEnabled()
         assert window.step_boxes["optdoc"].text() == "optdoc: aufbereiten"
         window.tabs.setCurrentWidget(window.text)
         text = window.text.text.toPlainText()

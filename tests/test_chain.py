@@ -43,7 +43,7 @@ def test_the_whole_way_again_from_the_chain_document(tmp_path: Path, report: Pat
     assert in_use(first) == [("typdoc", False), ("optdoc", True), ("ocrdoc", True),
                              ("tagdoc", True)]  # the original is a PDF: nothing to bind
     assert all(s["dropped"] == [] for s in first["steps"] if s["used"])
-    assert first["not_installed"] == ["semdoc", "attdoc"]
+    assert first["not_installed"] == []
     assert sorted(p.name for p in (tmp_path / "a").iterdir()) == [
         "scan.docrepro.json", "scan.md", "scan.pdf", "scan.reading.json"]
     chain = json.loads(Path(first["config"]).read_text(encoding="utf-8"))
@@ -121,11 +121,11 @@ def test_refused_chain_documents(tmp_path: Path, report: Path) -> None:
     with pytest.raises(DocreproError) as caught:
         Chain.open(other, chain=document)
     assert caught.value.kind == "config-mismatch"
-    semdoc = {**document, "steps": [{"tool": "semdoc", "used": True,
-                                     "made_with": "semdoc 0.1.0", "config": {}}]}
+    other = {**document, "steps": [{"tool": "otherdoc", "used": True,  # no step known here
+                                    "made_with": "otherdoc 0.1.0", "config": {}}]}
     with pytest.raises(DocreproError) as caught:
-        Chain.open(report, chain=semdoc)
-    assert (caught.value.kind, caught.value.details) == ("step-missing", {"step": "semdoc"})
+        Chain.open(report, chain=other)
+    assert (caught.value.kind, caught.value.details) == ("step-missing", {"step": "otherdoc"})
     for broken in ({**document, "steps": "alle"}, {**document, "originals": None},
                    {**document, "steps": [{"tool": "optdoc"}]},
                    {**document, "steps": [{"tool": "optdoc", "used": True}]},
@@ -341,17 +341,17 @@ def test_a_step_switched_off_keeps_what_it_held(tmp_path: Path, report: Path) ->
     held = by_tool(chain)["tagdoc"]["config"]
     chain["steps"] = [*(s for s in chain["steps"] if s["tool"] != "tagdoc"),
                       {"tool": "tagdoc", "used": False, "config": held},
-                      {"tool": "semdoc", "used": False, "config": {"kept": True}}]
+                      {"tool": "otherdoc", "used": False, "config": {"kept": True}}]
     second = Chain.open(report, chain=chain).run(tmp_path / "b")
     assert in_use(second) == [("typdoc", False), ("optdoc", True), ("ocrdoc", True),
                               ("tagdoc", False)]
     assert _embedded(second["document"]) == [EMBEDDED, "ocrdoc.json", "optdoc.json"]
     written = load_chain(second["config"])
     assert in_use(written) == [("typdoc", False), ("optdoc", True), ("ocrdoc", True),
-                               ("semdoc", False), ("tagdoc", False)]
+                               ("tagdoc", False), ("otherdoc", False)]
     assert by_tool(written)["tagdoc"] == {"tool": "tagdoc", "used": False, "config": held}
-    assert by_tool(written)["semdoc"] == {"tool": "semdoc", "used": False,
-                                          "config": {"kept": True}}
+    assert by_tool(written)["otherdoc"] == {"tool": "otherdoc", "used": False,
+                                            "config": {"kept": True}}
     back = {**written, "steps": [*(s for s in written["steps"]  # without the entry carried
                                    if s["tool"] in ("typdoc", "optdoc", "ocrdoc")),
                                  {"tool": "tagdoc", "used": True, "config": held}]}

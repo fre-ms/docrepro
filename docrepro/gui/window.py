@@ -6,9 +6,8 @@ and text, tagdoc's description), and three ways out.
 **Every step is optional.**  The switches on the left say which steps are in use for this
 document; a step that is off hands on what it got, and its tabs are closed and marked.
 Beside each switch stands what became of the step: off, in use as suggested, changed by
-hand, or to be made anew because a step before it changed.  A step that needs another
-(semdoc needs ocrdoc's reading) goes off with it.  What a person decided in a step that is
-switched off is kept, and back when the step is switched on again.
+hand, or to be made anew because a step before it changed.  What a person decided in a
+step that is switched off is kept, and back when the step is switched on again.
 
 typdoc, which binds a picture into a PDF, has no tab: it has nothing to decide.  For a PDF
 it has nothing to do.  For several pictures (the pages of one document) it is on and stays
@@ -251,31 +250,21 @@ class ChainWindow(QMainWindow):
             decided = registry.by_person(adapters[name], project)
         return "person" if decided else "auto"
 
-    def _unmet(self, name: str) -> str | None:
-        """The step that ``name`` needs and that is not in use, if there is one."""
-        step = registry.by_name(name)
-        return next((needed for needed in (step.needs if step else ())
-                     if needed not in self.used), None)
-
     def _refresh(self) -> None:
         """Show which steps are in use: the switches and what stands under them, the
         signs on the tabs, the tabs of a step that is off closed, and nothing to apply
         where no step is in use."""
         for name, switch in self.step_boxes.items():
             state = self.state(name)
-            unmet = self._unmet(name)
             switch.blockSignals(True)
             switch.setChecked(name in self.used)
             switch.blockSignals(False)
             bound = name == "typdoc" and self.several  # it makes one document of them
-            switch.setEnabled(state not in ("missing", "nothing") and unmet is None
-                              and not bound)
+            switch.setEnabled(state not in ("missing", "nothing") and not bound)
             sign = OFF if state in ("missing", "nothing", "off") else IN_USE
             words = self.w(f"chain_{state}")
             if bound:
                 words = f"{words} ({self.w('chain_several', count=len(self.chain.originals))})"
-            elif unmet is not None and state != "missing":
-                words = f"{words} ({self.w('chain_needs', needs=unmet)})"
             self.step_states[name].setText(f"{sign} {words}")
         for index, name in enumerate(self._tab_steps):
             on = name in self.used
@@ -295,15 +284,12 @@ class ChainWindow(QMainWindow):
                 if step.name in self.used and order[step.name] > order[name]}
 
     def _toggle(self, name: str, on: bool) -> None:
-        """Switch a step on or off.  A step that needs one which is off goes off with it;
-        the steps after it are to be made anew; a tab that closed is left."""
+        """Switch a step on or off: the steps after it are to be made anew; a tab that
+        closed is left."""
         if on:
             self.used.add(name)
         else:
             self.used.discard(name)
-        for step, _made in self.chain.steps:  # in the order of the steps: needs come first
-            if step.name in self.used and any(n not in self.used for n in step.needs):
-                self.used.discard(step.name)
         self.changed = True
         self._stale |= self._later_than(name)
         if on and name not in ("typdoc", "optdoc"):

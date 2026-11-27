@@ -29,7 +29,7 @@ from docrepro.chain import SUFFIX, Chain, load_chain, one_document, run_each
 from docrepro.errors import DocreproError
 from docrepro.steps import STEPS, adapter, catalogue
 
-INTERFACE = 5  # the version of docs/interface.md the answers follow
+INTERFACE = 6  # the version of docs/interface.md the answers follow
 TOOL = "docrepro"
 
 # the settings of the steps, by option: the name a step's options know it by
@@ -51,7 +51,7 @@ def _about(args: argparse.Namespace) -> dict[str, Any]:
     for step in STEPS:
         made = adapter(step)
         steps.append({"tool": step.name, "order": step.order, "takes": step.takes,
-                      "gives": step.gives, "does": step.does, "planned": step.planned,
+                      "gives": step.gives, "does": step.does,
                       "installed": made is not None,
                       "version": made.version if made is not None else None})
     return {"version": __version__, "steps": steps, "window": gui.available(),
@@ -218,8 +218,8 @@ def _parser() -> argparse.ArgumentParser:
     ed.add_argument("--self-test", action="store_true", help=argparse.SUPPRESS)
     frame.add_models(sub, TOOL)
     for step in STEPS:
-        sub.add_parser(step.name, help=f"{step.name}'s own command line ({step.does['en']})"
-                       + (", planned" if step.planned else ""), add_help=False)
+        sub.add_parser(step.name, help=f"{step.name}'s own command line ({step.does['en']})",
+                       add_help=False)
     return p
 
 

@@ -3,7 +3,7 @@ again.
 
 ``docrepro run <original>`` takes the original (a photo, a scan, any PDF) through the steps
 in their order (:mod:`docrepro.steps`): optdoc prepares its pages, ocrdoc reads optdoc's
-PDF, and the steps after (semdoc, tagdoc) take what the one before gave.  Each step works
+PDF, and tagdoc describes what ocrdoc gave.  Each step works
 as on its own, with its own configuration document.  **Every step is optional**: a step
 that is not in use hands on what it got, untouched, so that ocrdoc reads the original where
 optdoc is off, and tagdoc describes optdoc's PDF where ocrdoc is.  The chain document
@@ -167,9 +167,9 @@ class Chain:
         as ``chain`` (a chain document) says, else fresh, with every installed step in use
         but those named in ``without``.  Raises "missing", "config-mismatch" when the chain
         document belongs to other originals (or another order), "step-missing" when it used
-        a step that is not installed, "step-needs" when a step in use needs one that is
-        not, "several-originals" when several files cannot be bound into one, "no-steps"
-        when none is in use, "bad-config" for a document that makes no sense."""
+        a step that is not installed, "several-originals" when several files cannot be bound
+        into one, "no-steps" when none is in use, "bad-config" for a document that makes no
+        sense."""
         originals = ([Path(original)] if isinstance(original, str | Path)
                      else [Path(o) for o in original])
         if not originals or not all(o.is_file() for o in originals):
@@ -202,9 +202,9 @@ class Chain:
         return made
 
     def check(self) -> None:
-        """Raise "no-steps" when no step is in use, "step-needs" when a step in use needs
-        one that is not (semdoc, once there, needs ocrdoc's reading).  No step needs a
-        file of one type: every step takes what it is handed."""
+        """Raise "no-steps" when no step is in use, "several-originals" when several files
+        are not one document.  No step needs another, nor a file of one type: every step
+        takes what it is handed."""
         if not self.used:
             raise DocreproError("no-steps")
         if len(self.originals) > 1:  # one document only where typdoc binds them into one
@@ -212,12 +212,6 @@ class Chain:
             if binder is None or binder not in self.used \
                     or any(o.suffix.lower() == ".pdf" for o in self.originals):
                 raise DocreproError("several-originals")
-        for step, _adapter in self.steps:
-            if step.name not in self.used:
-                continue
-            for needed in step.needs:
-                if needed not in self.used:
-                    raise DocreproError("step-needs", step=step.name, needs=needed)
 
     def opened(self, adapter: Adapter, source: Path | list[Path], config: dict[str, Any] | None,
                scratch: Path) -> Any:

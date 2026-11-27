@@ -1,17 +1,27 @@
 # docrepro's command line as an interface
 
-**Interface 5**, since docrepro 0.9.0. This is what a program may rely on
+**Interface 6**, since docrepro 0.10.0. This is what a program may rely on
 when it calls docrepro, a records app above all, which ships one program instead of one per step.
+
+docrepro brings a photographed or scanned document as near to the original as it can, and goes no
+further: its steps are typdoc, optdoc, ocrdoc and tagdoc. Understanding what the text says and signing
+the document are tasks for other programs, which take what docrepro gives (ocrdoc's reading, the finished
+document; TimeAttest signs it).
 
 Every answer carries `interface`; it goes up when something a caller relies on changes in a way that breaks
 it. Within one interface, new fields, options and kinds of error may come; a caller ignores what it does not
 know. The steps' own command lines (`docrepro optdoc …`, `docrepro ocrdoc …`) keep their own interfaces
-(typdoc's 2, optdoc's 5, ocrdoc's 3, tagdoc's 3), described in their repositories.
+(typdoc's 3, optdoc's 5, ocrdoc's 3, tagdoc's 3), described in their repositories.
+
+**From interface 5:** semdoc and attdoc are no steps of docrepro any more (the user, 27 November 2026):
+`about` no longer lists them, `not_installed` no longer names them, and `docrepro semdoc …` or `docrepro
+attdoc …` is a `usage` error. With them went what only semdoc needed: a step's `planned` in `about`, and
+the kind of error `step-needs` (no step needs another). Everything else is as in interface 5.
 
 **Added within interface 4 (docrepro 0.8.0):** a picture goes through *every* step as a picture. tagdoc
 (0.3.0) describes a picture and writes the description into it where its format has a place (XMP, and the
 EXIF texts in step, in JPEG, PNG, TIFF, WebP and HEIC; XMP in GIF), else into a sidecar beside it. So
-`--without typdoc` alone keeps a picture a picture, and `step-needs` no longer arises for a picture.
+`--without typdoc` alone keeps a picture a picture.
 
 **From interface 3:** two things a caller may rely on changed. **The reading is `ocrdoc-reading`
 version 2**: every page says the `unit` of its boxes, points for a page of a PDF (as before) and the
@@ -26,18 +36,16 @@ in every step's own answer. No step is to force a file type, so the document nee
 **From interface 1 (docrepro 0.3.0):** every step is optional. `--without <step>` leaves a step out; the
 answer's `steps` name every installed step and say whether it was in use (`used`); the chain document is
 version 2 (each step says `used`; version 1 is no longer read: `bad-config`, reason `format`); a step the
-chain document does not name is not in use (it started fresh before); new kinds of error `step-needs` and
-`no-steps`. Models as an optional download came within interface 1 (docrepro 0.2.0) and stay as they are.
+chain document does not name is not in use (it started fresh before); new kind of error `no-steps`. Models as an optional download came within interface 1 (docrepro 0.2.0) and stay as they are.
 
 **Added within interface 3 (docrepro 0.6.0), and kept:** a picture can stay a picture. With typdoc left
 out, optdoc (0.10.0) gives back the type it was handed; `document` in the answer then names a picture, with
-the chain document beside it. A step that reads PDFs only and is handed a picture answers `step-needs`
-(it needs typdoc) before anything is done.
+the chain document beside it.
 
 **Added within interface 2 (docrepro 0.4.0), and kept:** typdoc as step 5, the one step that changes a
 document's type. It binds a picture into a PDF as medRDS says and is in use for pictures unless left out
 (`--without typdoc`); for a PDF it has nothing to do. The answer's `steps`, `about` and the chain document
-name it like every step. attdoc, the signing step to come (order 50), is named in `about`.
+name it like every step.
 
 **From interface 4:** `run` and `edit` take **several files**. Pictures of one document go through the
 chain as one: typdoc binds them into one PDF (a page for each, a file of several pictures a page for each
@@ -55,7 +63,7 @@ docrepro run  <original>… --out <folder> [--config <chain>] [--without <step>]
 docrepro edit <original>… --out <folder> [--config <chain>] [--without <step>]… [settings] [--language de|en]
 docrepro models list [--models <folder>]
 docrepro models fetch <name> --to <folder> [--progress]
-docrepro <step> …                      the step's own command line (typdoc, optdoc, ocrdoc, tagdoc; semdoc, attdoc once there)
+docrepro <step> …                      the step's own command line (typdoc, optdoc, ocrdoc, tagdoc)
 docrepro --version
 ```
 
@@ -73,15 +81,12 @@ to docrepro. docrepro never goes on the network while it works; the one command 
 ## `about`
 
 ```json
-{"interface": 5, "made_with": "docrepro 0.9.0", "version": "0.9.0", "window": true,
- "steps": [{"tool": "optdoc", "order": 10, "takes": "original", "gives": "pdf",
-            "does": {"en": "…", "de": "…"}, "planned": false, "installed": true, "version": "0.10.1"},
-           {"tool": "typdoc", "order": 5, "…": "…"},
+{"interface": 6, "made_with": "docrepro 0.10.0", "version": "0.10.0", "window": true,
+ "steps": [{"tool": "typdoc", "order": 5, "takes": "pictures", "gives": "pdf",
+            "does": {"en": "…", "de": "…"}, "installed": true, "version": "0.3.0"},
+           {"tool": "optdoc", "order": 10, "…": "…"},
            {"tool": "ocrdoc", "order": 20, "…": "…"},
-           {"tool": "semdoc", "order": 30, "takes": "reading", "gives": "annotations",
-            "planned": true, "installed": false, "version": null},
-           {"tool": "tagdoc", "order": 40, "…": "…"},
-           {"tool": "attdoc", "order": 50, "planned": true, "installed": false, "version": null}],
+           {"tool": "tagdoc", "order": 40, "…": "…"}],
  "models": [{"step": "optdoc", "name": "page-orientation", "…": "…", "present": null}]}
 ```
 
@@ -105,7 +110,7 @@ the hidden folder `.docrepro-work` inside `<folder>` and is removed at once). Wi
 
 tagdoc adds the sidecar `<file name>.xmp` (`<stem>.pdf.xmp`, `<stem>.bmp.xmp`) where the description goes
 into one: a signed PDF, a picture of a type without a place for it (BMP, PNM), or a file tagdoc cannot
-write into without risk. A step to come adds its own files (semdoc its annotations).
+write into without risk.
 
 **Every step is optional.** In use are all installed steps that have work for the original, but those left
 out: `--without typdoc`, `--without optdoc`, `--without ocrdoc`, `--without tagdoc`, as often as needed. A
@@ -125,8 +130,6 @@ it take what they are handed. optdoc keeps the type it is handed (from 0.10.0); 
 into the picture where the picture's format has a place for one (`docs/family-design.md` in optdoc has the
 design).
 
-A step that cannot do without another says so (`step-needs`: semdoc, once there, needs ocrdoc's reading).
-
 **Several files.** Pictures of one document (`docrepro run seite-1.jpg seite-2.jpg …`) are bound by typdoc
 into one PDF, in the order given, as medRDS 9.5 says (each picture in it byte for byte; a TIFF of several
 pages a page for each), and every step after it works on that one document. The results are named after
@@ -140,11 +143,11 @@ and stays a picture where it is not. The answer lists the answer of each documen
 files; with `--progress` every line also names the `document` (from 1):
 
 ```json
-{"interface": 5, "made_with": "docrepro 0.9.0",
+{"interface": 6, "made_with": "docrepro 0.10.0",
  "documents": [{"document": "<folder>/seite-1.jpg", "config": "<folder>/seite-1.docrepro.json",
                 "pages": 1, "steps": [{"tool": "typdoc", "used": false}, "…"]},
                {"document": "<folder>/brief.pdf", "…": "…"}],
- "not_installed": ["semdoc", "attdoc"]}
+ "not_installed": []}
 ```
 
 Two files whose names are the same before their ending would overwrite each other's results: `same-stem`,
@@ -172,14 +175,14 @@ document does not name it, and it may stand beside `--config`.
 The answer:
 
 ```json
-{"interface": 5, "made_with": "docrepro 0.9.0",
+{"interface": 6, "made_with": "docrepro 0.10.0",
  "document": "<folder>/<stem>.pdf", "config": "<folder>/<stem>.docrepro.json",
  "reading": "<folder>/<stem>.reading.json", "markdown": "<folder>/<stem>.md",
  "pages": 2,
  "steps": [{"tool": "optdoc", "used": true, "made_with": "optdoc 0.10.1", "dropped": []},
            {"tool": "ocrdoc", "used": true, "made_with": "ocrdoc 0.4.0", "dropped": [2]},
            {"tool": "tagdoc", "used": false}],
- "not_installed": ["semdoc"]}
+ "not_installed": []}
 ```
 
 `steps` names every installed step in the chain's order and says whether it was in use (`used`). For a
@@ -202,7 +205,7 @@ Switching typdoc hands optdoc another file (the picture, or the PDF of it) that 
 optdoc takes along what a person planned, and ocrdoc, which finds the same frames in optdoc's document,
 keeps what a person decided in it. Where optdoc is off, ocrdoc has no frames to go by and starts anew; the
 status line says so.
-A step that needs one which is off is off as well. What a person decided in a step that is
+What a person decided in a step that is
 switched off is kept, in the chain document too, and is back when the step is switched on again; one
 case apart: where optdoc is switched off, ocrdoc reads the original, a different file, and starts anew
 (the status line says so).
@@ -227,7 +230,7 @@ No step needs a model; a step lists one only after it did better, measured, than
 docrepro lists the models of every installed step, each with its step:
 
 ```json
-{"interface": 5, "made_with": "docrepro 0.9.0",
+{"interface": 6, "made_with": "docrepro 0.10.0",
  "models": [{"step": "optdoc", "name": "page-orientation", "file": "pp-lcnet-x1-0-doc-ori.onnx",
              "url": "https://huggingface.co/PaddlePaddle/PP-LCNet_x1_0_doc_ori_onnx/resolve/…/inference.onnx",
              "sha256": "af9a0a4f…", "bytes": 6788069, "licence": "Apache-2.0",
@@ -267,7 +270,7 @@ its bench (ocrdoc's `docs/interface.md`).
 ## The chain document: `docrepro-chain`, version 3
 
 ```json
-{"format": "docrepro-chain", "version": 3, "made_with": "docrepro 0.9.0",
+{"format": "docrepro-chain", "version": 3, "made_with": "docrepro 0.10.0",
  "originals": [{"sha256": "…", "bytes": 245678, "suffix": ".jpg"},
                {"sha256": "…", "bytes": 231004, "suffix": ".jpg"}],
  "steps": [{"tool": "typdoc", "used": true, "made_with": "typdoc 0.2.0",
@@ -296,8 +299,7 @@ As every tool of docrepro: `error`, `details`, `message` in English and German. 
 
 | `error` | when | `details` |
 |---|---|---|
-| `step-missing` | the chain document used a step that is not installed, or `docrepro <step>` for one | `step` |
-| `step-needs` | a step in use needs one that is switched off or not installed (semdoc, once there, needs ocrdoc's reading) | `step`, `needs` |
+| `step-missing` | the chain document used a step that is not installed (a step of a later docrepro, or one left out of this program), or `docrepro <step>` for a step that is not installed | `step` |
 | `several-originals` | the window, or a chain document, is given several files that are not one document (typdoc does not bind them) | |
 | `same-stem` | several files taken each by itself, two of them with the same name before their ending | |
 | `no-steps` | no step is in use: nothing to do | |
@@ -315,10 +317,8 @@ step's project on its input (fresh with the settings, or as its configuration do
 configuration document, makes and writes the result (a PDF for the next step, and its own files), and names
 the pages whose decisions went (`docrepro.steps.Adapter`), and may bring a panel for the window
 (`panel(project, words)`), the models its step can use (`catalogue`) and a way to hand its project the
-folder of models (`use_models(project, folder)`). A step says in docrepro's list of steps which others it
-cannot do without (`needs`). typdoc (order 5) and tagdoc (order 40) join so; semdoc (order 30, takes the
-reading, gives annotations, format `semdoc-annotations`) and attdoc (order 50, signs) have their places
-already.
+folder of models (`use_models(project, folder)`), and the originals the chain began with
+(`use_originals(project, files)`). typdoc (order 5) and tagdoc (order 40) join so.
 
 ## Licence
 
