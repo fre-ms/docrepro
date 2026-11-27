@@ -1,0 +1,74 @@
+"""Reading a picture, and the JPEG a page shows of one that is no JPEG.
+
+A JPEG is bound as it is.  Any other picture is attached to its page as it is, and the
+page shows a JPEG made of it here: upright as its EXIF orientation says, in its colours (or
+in grey where it has none), transparent parts on white, at quality 92 with full colour
+resolution, without any of the picture's metadata.  The same picture gives the same JPEG
+on the same version of typdoc.
+"""
+
+from __future__ import annotations
+
+import io
+from pathlib import Path
+
+from doccor.pictures import SUFFIXES  # the pictures every tool of docrepro takes
+
+from typdoc import medrds
+from typdoc.errors import TypdocError
+
+QUALITY = 92  # of the JPEG a page shows of a picture that is none
+
+
+def read(path: Path) -> bytes:
+    """The bytes of a picture file.  Raises "missing", "not-picture" (a PDF),
+    "unsupported" (a type typdoc does not bind), "unreadable"."""
+    if not path.is_file():
+        raise TypdocError("missing")
+    suffix = path.suffix.lower()
+    if suffix == ".pdf":
+        raise TypdocError("not-picture")
+    if suffix not in SUFFIXES:
+        raise TypdocError("unsupported", suffix=suffix or "(none)")
+    try:
+        return path.read_bytes()
+    except OSError as e:
+        raise TypdocError("unreadable") from e
+
+
+def shown(data: bytes) -> bytes | list[bytes] | None:
+    """What the pages show of a picture: None for a JPEG (it is shown as it is), else the
+    JPEG made of it; for a file of several pictures (a TIFF of several pages, a HEIC of
+    several images, the frames of a GIF) a list, the JPEG of each, in their order.  Raises
+    "unreadable" for what is no picture."""
+    if medrds.is_jpeg(data):
+        try:
+            medrds.jpeg_facts(data)
+        except medrds.NotBound as e:
+            raise TypdocError("unreadable") from e
+        return None
+    import pillow_heif
+    from PIL import Image, ImageOps
+
+    pillow_heif.register_heif_opener()
+    try:
+        made = []
+        with Image.open(io.BytesIO(data)) as image:
+            frames = int(getattr(image, "n_frames", 1))
+            for n in range(frames):
+                image.seek(n)
+                upright = ImageOps.exif_transpose(image)
+                if upright.mode in ("RGBA", "LA", "PA") or "transparency" in upright.info:
+                    rgba = upright.convert("RGBA")
+                    white = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
+                    flat = Image.alpha_composite(white, rgba).convert("RGB")
+                elif upright.mode in ("L", "1", "I;16", "I", "F"):
+                    flat = upright.convert("L")
+                else:
+                    flat = upright.convert("RGB")
+                buffer = io.BytesIO()
+                flat.save(buffer, format="JPEG", quality=QUALITY, subsampling=0, optimize=False)
+                made.append(buffer.getvalue())
+        return made if frames > 1 else made[0]
+    except Exception as e:  # Pillow words its failures with what it was given
+        raise TypdocError("unreadable") from e
